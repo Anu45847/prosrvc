@@ -279,6 +279,11 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
 .cb-input{flex:1;background:var(--dark3);border:1px solid var(--border);border-radius:16px;padding:7px 12px;color:#fff;font-size:12px;font-family:'Barlow',sans-serif;outline:none;}
 .cb-input:focus{border-color:var(--red);}
 .cb-send{background:var(--red);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;font-size:14px;}
+.cb-dots span{animation:cbdot 1.2s infinite;display:inline-block;font-size:18px;color:var(--red);}
+.cb-dots span:nth-child(2){animation-delay:.2s;}
+.cb-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes cbdot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.cb-input:disabled{opacity:.5;cursor:not-allowed;}
 
 /* ===== SUGGESTIONS ===== */
 .suggestion-card{background:var(--dark2);border-left:3px solid var(--red);border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px;}
@@ -948,6 +953,13 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     </div>
     <!-- SETTINGS -->
     <div class="tpanel" id="tp-settings">
+      <div class="set-card" id="ai-key-card">
+        <div class="set-lbl">🤖 AI Chatbot Key</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Enter your Anthropic API key to enable the AI assistant. Get one free at <span style="color:var(--red);">console.anthropic.com</span></div>
+        <input id="s-ai-key" class="set-fi" type="password" placeholder="sk-ant-..." style="font-family:monospace;font-size:12px;">
+        <div id="ai-key-msg" class="pmsg"></div>
+        <button class="btn-p" onclick="saveAiKey()" style="margin-top:8px;">Save AI Key</button>
+      </div>
       <div class="set-card">
         <div class="set-lbl">Change Manager PIN</div>
         <div class="fl" style="color:var(--text3);margin-bottom:6px;">Current PIN</div>
@@ -1729,129 +1741,163 @@ function sendChatFile(input){
 // CHATBOT
 // =========================================================
 // =========================================================
-// AI CHATBOT — powered by Claude (Anthropic API)
+// AI CHATBOT — Claude Sonnet, multi-turn, web search
 // =========================================================
-let cbHistory = [];  // conversation history for multi-turn memory
+let cbHistory = [];
+let cbThinking = false;
 
-// Build system prompt with full app context
+function getCbApiKey(){
+  // Check localStorage first (set via App Management settings)
+  return localStorage.getItem('prosrvc_ai_key') || '';
+}
+
+function setCbApiKey(key){
+  if(key) localStorage.setItem('prosrvc_ai_key', key.trim());
+  else localStorage.removeItem('prosrvc_ai_key');
+}
+
 function buildSystemPrompt(){
-  const userName = CU ? displayName(CU) : 'a user';
-  const userTeam = CU ? (CU.team||CU.teamCode||'unknown') : 'unknown';
-  const userRole = CU ? (CU.role||'Worker') : 'unknown';
-  const isOfficial = !!currentOfficial;
-  const todayEntries = D.entries.filter(e=>e.date===todayStr()).length;
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const u = CU || currentOfficial;
+  const userName = u ? displayName(u) : null;
+  const userRole = u ? (u.role||'Worker') : null;
+  const userTeam = u ? (u.team||u.teamCode||null) : null;
   const activeMembers = D.users.filter(u=>u.status==='active').length;
   const pendingMembers = D.users.filter(u=>u.status==='pending').length;
-  const upcomingEvents = D.events.filter(e=>e.date>=todayStr()).slice(0,3).map(e=>`${e.title} on ${e.date}`).join(', ') || 'none';
+  const todayShifts = D.entries.filter(e=>e.date===todayStr()).length;
+  const myStreak = CU ? calcStreak(CU.name) : 0;
+  const events = D.events.filter(e=>e.date>=todayStr()).slice(0,5).map(e=>`${e.title} (${e.date}${e.time?' '+e.time:''})`).join(', ')||'none scheduled';
 
-  return `You are the PROSRVC Assistant — a smart, friendly helper built into the PROSRVC Productivity Tracker app used by a warehouse team.
+  return `You are the PROSRVC Assistant — a warm, smart, and genuinely helpful AI assistant built into the PROSRVC Productivity Tracker app for a warehouse team.
 
-CURRENT USER: ${userName} | Role: ${userRole} | Team: ${userTeam} | ${isOfficial ? 'Officials access' : 'Worker access'}
+Current date/time: ${dateStr}, ${timeStr}
+${userName ? `Talking to: ${userName} | Role: ${userRole} | Team: ${userTeam||'not set'}` : 'No user logged in yet'}
+${CU ? `Their streak: ${myStreak} days | Submitted today: ${D.entries.some(e=>e.worker===CU.name&&e.date===todayStr())?'Yes':'No'}` : ''}
+Team stats: ${activeMembers} active members, ${pendingMembers} pending approval, ${todayShifts} shifts submitted today
+Upcoming events: ${events}
 
-APP CONTEXT RIGHT NOW:
-- Active members: ${activeMembers}
-- Pending approvals: ${pendingMembers}
-- Shifts submitted today: ${todayEntries}
-- Upcoming events: ${upcomingEvents}
+ABOUT THE APP:
+PROSRVC Productivity Tracker is a PWA (installable web app) for warehouse teams. Workers log daily shift tasks with custom fields and quantities. Managers track output, approve members, run growth reports.
 
-WHAT THIS APP DOES:
-- Workers log their daily shift tasks (custom fields + quantities) once per day
-- Managers/Officials track team output, approve members, manage team codes, view growth charts
-- Team Representatives manage their own team — approvals, removals, team codes
-- Chat rooms per team (workers only see their own team + Communication room)
-- Event Manager role can add company events — workers get notified
-- Avatar builder for profile pictures (male/female hair options, skin tones, extras like flowers, crowns etc)
-- Streak counter — consecutive days logged (Sundays don't break streaks)
-- App Management (PIN 6558) has full control — permissions, danger zone, all data
-- Officials PIN default is 1234 (changeable in Settings)
-- PWA — installable from browser, works offline
+Key features:
+- Workers: log shifts once/day with custom task fields, view history, team chat, profile with avatar builder
+- Officials (PIN 1234): dashboard with output charts, growth tracking, member management, events, salary visibility
+- Team Representatives: manage own team only — approve/remove members, create team codes
+- App Management (PIN 6558): full control, permissions, danger zone, all data export
+- Salary: visible only to CEO, MD, Human Representative, App Management (configurable)
+- Streaks: consecutive shift days, Sundays never break streaks
+- Avatar builder: male/female hair, skin tones, eyes, brows, mouth, extras (flowers, crowns, glasses etc), outfits, 5 colour pickers, gender presets, random button
+- Chat: workers see only their team room + Communication. Officials see all rooms.
+- Events: Event Manager creates events, workers get push notifications
+- Teams: Watch Buds Tabs, Testing, Repair, Inventory, Accessories, Amazon, B2B Sales, Laptop, Shipping
+- PWA install: Android tap Install button, iPhone: Safari → Share → Add to Home Screen
+- Push notifications: shift reminder at 6pm if not submitted
+- Share link: https://anu45847.github.io/prosrvc/
 
-ROLES:
-Workers: Warehouse Worker, Team Representative, Sales Person B2B/Amazon, Human Representative, Management Director, Accountant, Data Analyst, Developer, CEO
-Officials: same roles + Event Manager + App Management
+HOW YOU SHOULD BEHAVE:
+- Be warm, conversational and human — not robotic or corporate
+- Understand natural language fully — slang, incomplete sentences, typos, anything
+- Answer app questions with specific, actionable guidance
+- Answer general knowledge questions confidently
+- Use web search for anything current: news, sports, weather, prices, events
+- Remember everything said earlier in this conversation
+- Keep answers concise unless detail is needed — no waffle
+- Use the person's name naturally when it feels right
+- If something is unclear, make a reasonable assumption and answer it — don't just ask for clarification
+- Show personality — you can be warm, slightly witty, and encouraging`;
+}
 
-TEAMS: Watch Buds Tabs, Testing, Repair, Inventory, Accessories, Amazon, B2B Sales, Laptop, Shipping
+function cbAddMessage(role, html, id){
+  const msgs = document.getElementById('cb-msgs');
+  const div = document.createElement('div');
+  div.className = 'cb-msg ' + (role==='user'?'user':'bot');
+  div.innerHTML = html;
+  if(id) div.id = id;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
 
-SALARY: Only visible to CEO, Management Director, Human Representative, and App Management (configurable in Permissions tab)
-
-YOUR JOB:
-- Answer ANY question the user has — about the app, their team, general knowledge, anything
-- Be concise and friendly — short answers unless detail is needed
-- If asked about something outside the app, answer from your general knowledge
-- Use web search when asked about current events, news, prices, or anything time-sensitive
-- Never make up app data — only use what's in the context above
-- Respond in the same language the user writes in
-- Keep responses under 150 words unless the user asks for detail`;
+function cbFormatText(text){
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code style="background:#111;padding:1px 5px;border-radius:3px;font-size:11px;">$1</code>')
+    .replace(/\n/g,'<br>');
 }
 
 async function sendCbMsg(){
+  if(cbThinking) return;
   const input = document.getElementById('cb-input');
   const text = input.value.trim();
   if(!text) return;
 
-  const msgs = document.getElementById('cb-msgs');
-
-  // Add user message to UI
-  msgs.innerHTML += `<div class="cb-msg user">${escHtml(text)}</div>`;
   input.value = '';
-  msgs.scrollTop = msgs.scrollHeight;
+  cbThinking = true;
+  input.disabled = true;
+
+  // Show user message
+  cbAddMessage('user', cbFormatText(text));
 
   // Add to history
-  cbHistory.push({ role: 'user', content: text });
+  cbHistory.push({role:'user', content: text});
 
-  // Show typing indicator
-  const typingId = 'cb-typing-' + Date.now();
-  msgs.innerHTML += `<div class="cb-msg bot" id="${typingId}" style="color:#555;font-style:italic;">Thinking...</div>`;
-  msgs.scrollTop = msgs.scrollHeight;
+  // Show thinking indicator with animated dots
+  const thinkId = 'cb-think-' + Date.now();
+  cbAddMessage('bot', '<span class="cb-dots"><span>.</span><span>.</span><span>.</span></span>', thinkId);
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': getCbApiKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         system: buildSystemPrompt(),
-        tools: [{
-          type: 'web_search_20250305',
-          name: 'web_search',
-        }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: cbHistory
       })
     });
 
-    const data = await response.json();
+    if(!res.ok){
+      throw new Error('API error ' + res.status);
+    }
 
-    // Extract text from response (handles tool use + text blocks)
+    const data = await res.json();
     let reply = '';
-    if(data.content && Array.isArray(data.content)){
-      // Collect all text blocks
-      reply = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('\n')
-        .trim();
 
-      // If no text yet (only tool_use blocks), make a second call with tool results
-      if(!reply && data.stop_reason === 'tool_use'){
-        // Add assistant response to history
-        cbHistory.push({ role: 'assistant', content: data.content });
+    if(data.content){
+      // Handle tool use (web search) — collect all text
+      const textBlocks = data.content.filter(b=>b.type==='text');
+      reply = textBlocks.map(b=>b.text).join('\n').trim();
 
-        // Build tool results
+      // If Claude used web search, there may be more text in a follow-up
+      if(data.stop_reason === 'tool_use' && !reply){
+        // Add the assistant turn with tool_use to history
+        cbHistory.push({role:'assistant', content: data.content});
+        // Build tool results from web_search blocks
         const toolResults = data.content
-          .filter(b => b.type === 'tool_use')
-          .map(b => ({
-            type: 'tool_result',
-            tool_use_id: b.id,
-            content: 'Search results will be provided by the API'
-          }));
+          .filter(b=>b.type==='tool_use')
+          .map(b=>({type:'tool_result', tool_use_id:b.id, content:'Search completed.'}));
+        cbHistory.push({role:'user', content: toolResults});
 
-        cbHistory.push({ role: 'user', content: toolResults });
-
-        // Second call
-        const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+        // Get final response
+        const res2 = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': '',
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -1860,48 +1906,66 @@ async function sendCbMsg(){
             messages: cbHistory
           })
         });
-        const d2 = await r2.json();
-        if(d2.content){
-          reply = d2.content.filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
-          cbHistory.push({ role: 'assistant', content: d2.content });
+        const data2 = await res2.json();
+        if(data2.content){
+          reply = data2.content.filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+          cbHistory.push({role:'assistant', content: data2.content});
         }
       } else {
-        cbHistory.push({ role: 'assistant', content: data.content });
+        cbHistory.push({role:'assistant', content: data.content});
       }
     }
 
-    if(!reply) reply = "Sorry, I couldn't get a response. Please try again.";
+    if(!reply) reply = "Hmm, I didn't get a proper response there. Try asking again!";
 
-    // Keep history to last 20 messages to avoid token limits
-    if(cbHistory.length > 20) cbHistory = cbHistory.slice(-20);
+    // Keep history manageable
+    if(cbHistory.length > 30) cbHistory = cbHistory.slice(-30);
 
-    // Remove typing indicator and show reply
-    const typingEl = document.getElementById(typingId);
-    if(typingEl) typingEl.remove();
+    // Replace thinking indicator with real response
+    const thinkEl = document.getElementById(thinkId);
+    if(thinkEl) thinkEl.innerHTML = cbFormatText(reply);
 
-    // Format reply — convert **bold** and newlines
-    const formatted = reply
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br>');
-
-    msgs.innerHTML += `<div class="cb-msg bot">${formatted}</div>`;
-
-  } catch(err) {
-    const typingEl = document.getElementById(typingId);
-    if(typingEl) typingEl.textContent = "Connection error. Check your internet and try again.";
+  } catch(e) {
+    const thinkEl = document.getElementById(thinkId);
+    if(thinkEl){
+      if(!getCbApiKey() || e.message.includes('401') || e.message.includes('403')){
+        thinkEl.innerHTML = "The AI assistant needs an API key to work. Go to App Management → Settings → AI Key to set it up. This is a one-time setup by your app admin.";
+      } else if(e.message.includes('Failed to fetch') || e.message.includes('NetworkError')){
+        thinkEl.innerHTML = "Can't reach the server right now. Check your internet connection and try again.";
+      } else {
+        thinkEl.innerHTML = "Something went wrong. Try again in a moment.";
+      }
+    }
   }
 
-  msgs.scrollTop = msgs.scrollHeight;
+  cbThinking = false;
+  input.disabled = false;
+  input.focus();
 }
 
-function escHtml(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function saveAiKey(){
+  const val = document.getElementById('s-ai-key')?.value.trim();
+  const msg = document.getElementById('ai-key-msg');
+  if(!val){ setCbApiKey(null); msg.style.display='block'; msg.style.color='#f55'; msg.textContent='Key cleared.'; return; }
+  if(!val.startsWith('sk-ant-')){ msg.style.display='block'; msg.style.color='#f55'; msg.textContent='Invalid key format. Should start with sk-ant-'; return; }
+  setCbApiKey(val);
+  msg.style.display='block'; msg.style.color='var(--success)'; msg.textContent='AI key saved! Chatbot is now active.';
+  document.getElementById('s-ai-key').value='';
+  setTimeout(()=>{ msg.style.display='none'; },3000);
 }
 
 function clearChatHistory(){
   cbHistory = [];
   const msgs = document.getElementById('cb-msgs');
-  msgs.innerHTML = '<div class="cb-msg bot">Chat cleared! How can I help you?</div>';
+  msgs.innerHTML = '<div class="cb-msg bot">Fresh start! What can I help you with? 😊</div>';
+}
+
+function toggleChatbot(){
+  const win = document.getElementById('chatbot-win');
+  win.classList.toggle('open');
+  if(win.classList.contains('open')){
+    setTimeout(()=>document.getElementById('cb-input')?.focus(), 100);
+  }
 }
 
 
@@ -2901,7 +2965,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
       <div style="width:28px;height:28px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;">🤖</div>
       <div>
         <div class="cb-title">PROSRVC Assistant</div>
-        <div style="font-size:9px;color:#27ae60;letter-spacing:1px;">● AI-powered · Web search enabled</div>
+        <div id="cb-ai-status" style="font-size:9px;letter-spacing:1px;color:#27ae60;">● AI · Web search</div>
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
