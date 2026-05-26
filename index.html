@@ -2483,61 +2483,136 @@ function confirmAvatar(){
 }
 
 // =========================================================
-// INSTALL BANNER — shows after 3 seconds if not installed
+// INSTALL WALL — shows on first visit before anything else
 // =========================================================
 let _installPrompt = null;
-let _bannerShown = false;
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _installPrompt = e;
-  document.querySelectorAll('.install-btn').forEach(b => b.style.display='inline-block');
-  // Show install banner after short delay
-  if(!_bannerShown && !localStorage.getItem('pwa_installed')){
-    setTimeout(showInstallBanner, 3000);
-  }
+  // If install wall is showing, update its button
+  const btn = document.getElementById('_iwall_btn');
+  if(btn){ btn.textContent = '📲 Install App Now'; btn.onclick = doInstallNow; }
 });
 
 window.addEventListener('appinstalled', () => {
   _installPrompt = null;
-  localStorage.setItem('pwa_installed','1');
-  document.querySelectorAll('.install-btn').forEach(b => b.style.display='none');
-  hideInstallBanner();
-  // Celebrate!
-  showToast('✓ App installed! Find PROSRVC on your home screen.');
+  localStorage.setItem('prosrvc_installed','1');
+  removeInstallWall();
+  showToast('✓ PROSRVC installed! Open it from your home screen anytime.');
 });
 
-function showInstallBanner(){
-  if(_bannerShown || localStorage.getItem('pwa_installed')) return;
-  _bannerShown = true;
-  const b = document.createElement('div');
-  b.id = '_install_banner';
-  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;border-top:2px solid #D72B2B;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:9998;animation:slideUp .3s ease;';
-  b.innerHTML = `
-    <style>@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}</style>
-    <div style="width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#D72B2B;">
-      <img src="icon-192.png" style="width:100%;height:100%;object-fit:cover;">
-    </div>
-    <div style="flex:1;min-width:0;">
-      <div style="font-size:13px;font-weight:700;color:#fff;font-family:'Barlow',sans-serif;">Install PROSRVC</div>
-      <div style="font-size:11px;color:#888;margin-top:1px;">Add to home screen for quick access</div>
-    </div>
-    <button onclick="installApp()" style="background:#D72B2B;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Install</button>
-    <button onclick="hideInstallBanner()" style="background:transparent;border:none;color:#555;font-size:20px;cursor:pointer;padding:4px;line-height:1;">×</button>`;
-  document.body.appendChild(b);
+function isRunningAsPWA(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true
+      || document.referrer.includes('android-app://');
 }
 
-function hideInstallBanner(){
-  const b = document.getElementById('_install_banner');
-  if(b) b.remove();
+function showInstallWall(){
+  // Don't show if already installed as PWA or user dismissed permanently
+  if(isRunningAsPWA()) return;
+  if(localStorage.getItem('prosrvc_installed')) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  const wall = document.createElement('div');
+  wall.id = '_install_wall';
+  wall.style.cssText = [
+    'position:fixed;inset:0;z-index:99999;',
+    'background:#0A0A0A;',
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;',
+    'padding:32px 24px;font-family:"Barlow",sans-serif;',
+    'animation:fadeIn .4s ease;'
+  ].join('');
+
+  const iosSteps = `
+    <div style="background:#1a1a1a;border-radius:12px;padding:16px;width:100%;max-width:320px;margin-bottom:20px;">
+      <div style="font-size:11px;letter-spacing:2px;color:#D72B2B;font-weight:700;text-transform:uppercase;margin-bottom:12px;">How to Install on iPhone</div>
+      ${[
+        ['1','Tap the <b>Share</b> button','(the box with arrow at the bottom of Safari)'],
+        ['2','Scroll down and tap','<b>Add to Home Screen</b>'],
+        ['3','Tap <b>Add</b>','in the top right corner']
+      ].map(([n,a,b])=>`
+        <div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start;">
+          <div style="background:#D72B2B;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${n}</div>
+          <div style="font-size:13px;color:#ccc;line-height:1.5;">${a} ${b}</div>
+        </div>`).join('')}
+    </div>
+    <div style="font-size:12px;color:#444;text-align:center;margin-bottom:20px;">Must use Safari browser on iPhone</div>`;
+
+  const androidSteps = `
+    <div id="_iwall_android_prompt" style="background:#1a1a1a;border-radius:12px;padding:16px;width:100%;max-width:320px;margin-bottom:20px;">
+      <div style="font-size:11px;letter-spacing:2px;color:#D72B2B;font-weight:700;text-transform:uppercase;margin-bottom:8px;">Tap below to install</div>
+      <div style="font-size:13px;color:#888;">The app will be added to your home screen — no App Store needed.</div>
+    </div>`;
+
+  wall.innerHTML = `
+    <style>
+      @keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+      @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+    </style>
+    <img src="icon-512.png" style="width:96px;height:96px;border-radius:22px;margin-bottom:20px;box-shadow:0 8px 32px rgba(215,43,43,.4);">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:#fff;letter-spacing:1px;margin-bottom:4px;">PROSRVC</div>
+    <div style="font-size:13px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;">Productivity Tracker</div>
+    ${isIOS ? iosSteps : androidSteps}
+    <button id="_iwall_btn"
+      onclick="${isIOS ? 'dismissInstallWall()' : 'doInstallNow()'}"
+      style="background:#D72B2B;color:#fff;border:none;border-radius:12px;padding:16px 40px;font-family:'Barlow',sans-serif;font-size:16px;font-weight:700;cursor:pointer;width:100%;max-width:320px;animation:pulse 2s infinite;letter-spacing:1px;">
+      ${isIOS ? '&#10003; Added to Home Screen' : '&#128242; Install App Now'}
+    </button>
+    <button onclick="dismissInstallWall()" style="background:transparent;border:none;color:#333;font-size:12px;cursor:pointer;margin-top:16px;font-family:'Barlow',sans-serif;padding:8px;">
+      Continue in browser instead
+    </button>`;
+
+  document.body.appendChild(wall);
+}
+
+function doInstallNow(){
+  if(_installPrompt){
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(c => {
+      if(c.outcome === 'accepted'){
+        localStorage.setItem('prosrvc_installed','1');
+      }
+    });
+  } else {
+    // Prompt not available yet — show manual instructions
+    const prompt = document.getElementById('_iwall_android_prompt');
+    if(prompt){
+      prompt.innerHTML = `
+        <div style="font-size:11px;letter-spacing:2px;color:#D72B2B;font-weight:700;text-transform:uppercase;margin-bottom:12px;">Install Manually</div>
+        ${[
+          ['1','Tap the <b>⋮ menu</b>','in the top right of Chrome'],
+          ['2','Tap','<b>Add to Home Screen</b>'],
+          ['3','Tap <b>Add</b>','to confirm']
+        ].map(([n,a,b])=>`
+          <div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start;">
+            <div style="background:#D72B2B;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${n}</div>
+            <div style="font-size:13px;color:#ccc;line-height:1.5;">${a} ${b}</div>
+          </div>`).join('')}`;
+    }
+    const btn = document.getElementById('_iwall_btn');
+    if(btn){ btn.textContent = "✓ Done, Continue"; btn.style.animation='none'; btn.onclick = dismissInstallWall; }
+  }
+}
+
+function dismissInstallWall(){
+  localStorage.setItem('prosrvc_dismissed', Date.now());
+  removeInstallWall();
+}
+
+function removeInstallWall(){
+  const w = document.getElementById('_install_wall');
+  if(w){ w.style.animation='none'; w.style.opacity='0'; w.style.transition='opacity .3s'; setTimeout(()=>w.remove(),300); }
 }
 
 function showToast(msg){
   const t = document.createElement('div');
-  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#27ae60;color:#fff;padding:10px 20px;border-radius:20px;font-family:"Barlow",sans-serif;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;';
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#27ae60;color:#fff;padding:10px 20px;border-radius:20px;font-family:"Barlow",sans-serif;font-size:13px;font-weight:600;z-index:99999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4);';
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(()=>t.remove(), 3000);
+  setTimeout(()=>t.remove(), 4000);
 }
 
 // =========================================================
@@ -2673,43 +2748,9 @@ function _doCopy() {
 }
 
 function installApp() {
-  if (_installPrompt) {
-    _installPrompt.prompt();
-    _installPrompt.userChoice.then(() => { _installPrompt = null; });
-  } else {
-    // Show manual instructions
-    showInstallDialog();
-  }
+  doInstallNow();
 }
 
-function showInstallDialog() {
-  const existing = document.getElementById('_install_dialog');
-  if (existing) existing.remove();
-
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const steps = isIOS
-    ? ['Tap the <strong>Share</strong> button (the box with an arrow) at the bottom of Safari', 'Scroll down and tap <strong>Add to Home Screen</strong>', 'Tap <strong>Add</strong> — done!']
-    : ['Tap the <strong>menu</strong> (3 dots) in your browser', 'Tap <strong>Add to Home Screen</strong> or <strong>Install App</strong>', 'Tap <strong>Install</strong> — done!'];
-
-  const overlay = document.createElement('div');
-  overlay.id = '_install_dialog';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
-  overlay.innerHTML = `
-    <div style="background:#1a1a1a;border:1px solid #333;border-radius:14px;width:100%;max-width:380px;padding:24px;font-family:'Barlow',sans-serif;">
-      <div style="font-size:20px;font-weight:900;font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;margin-bottom:4px;">Install App</div>
-      <div style="font-size:12px;color:#666;margin-bottom:16px;">Add PROSRVC to your home screen like a native app</div>
-      <div style="background:#111;border-radius:8px;padding:14px;margin-bottom:16px;">
-        ${steps.map((s,i) => `<div style="display:flex;gap:10px;margin-bottom:${i<steps.length-1?'12px':'0'};">
-          <div style="background:#D72B2B;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${i+1}</div>
-          <div style="font-size:13px;color:#ccc;line-height:1.5;">${s}</div>
-        </div>`).join('')}
-      </div>
-      <button onclick="document.getElementById('_install_dialog').remove()" style="width:100%;background:#D72B2B;color:#fff;border:none;border-radius:8px;padding:13px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Got it</button>
-    </div>`;
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-}
 
 // Register service worker for offline use (only on HTTPS)
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
