@@ -2,8 +2,8 @@
   "name": "PROSRVC Productivity Tracker",
   "short_name": "PROSRVC",
   "description": "Track warehouse productivity, manage your team, and stay connected.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/prosrvc/index.html",
+  "scope": "/prosrvc/",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#D72B2B",
@@ -13,6 +13,7 @@
     "business"
   ],
   "lang": "en-GB",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-120.png",
@@ -47,13 +48,12 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [],
   "shortcuts": [
     {
       "name": "Log My Shift",
       "short_name": "Log Shift",
       "description": "Go directly to today's shift log",
-      "url": "./index.html",
+      "url": "/prosrvc/index.html",
       "icons": [
         {
           "src": "icon-192.png",
