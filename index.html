@@ -266,12 +266,12 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
 
 /* ===== CHATBOT ===== */
 #chatbot-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;background:var(--red);border-radius:50%;border:none;cursor:pointer;color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.5);}
-#chatbot-win{display:none;position:fixed;bottom:78px;right:16px;width:300px;max-height:420px;background:var(--dark2);border:1px solid var(--border);border-radius:12px;z-index:999;flex-direction:column;overflow:hidden;}
+#chatbot-win{display:none;position:fixed;bottom:78px;right:16px;width:min(340px,calc(100vw-24px));max-height:min(520px,calc(100vh-100px));background:var(--dark2);border:1px solid var(--border);border-radius:14px;z-index:999;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.6);}
 #chatbot-win.open{display:flex;}
 .cb-hdr{background:var(--dark);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
 .cb-title{font-size:13px;font-weight:700;color:var(--red);}
 .cb-close{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:18px;}
-.cb-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:280px;}
+.cb-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
 .cb-msg{font-size:12px;line-height:1.5;padding:8px 11px;border-radius:10px;max-width:90%;}
 .cb-msg.bot{background:var(--dark3);color:var(--text2);align-self:flex-start;border-bottom-left-radius:3px;}
 .cb-msg.user{background:var(--red);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;}
@@ -1728,47 +1728,182 @@ function sendChatFile(input){
 // =========================================================
 // CHATBOT
 // =========================================================
-const cbKnowledge = [
-  {q:['login','sign in','password'],a:'To log in, go to Worker Login on the home screen, enter your full name and password. If you set a PIN during signup, you can use that for quick login.'},
-  {q:['sign up','create account','register'],a:'Tap Sign Up on the home screen. You\'ll need your full name, password, team code (from your manager), your team, and role. You can also set a profile picture and PIN.'},
-  {q:['team code','teamcode'],a:'Your team code is given to you by your manager. It looks like TEAM-A1. Ask your manager if you don\'t have one.'},
-  {q:['submit','shift','log'],a:'Go to Today\'s Log, add your tasks with quantities, add any comments, then tap Submit Shift at the bottom. You\'ll see a confirmation screen first.'},
-  {q:['pin','quick login'],a:'You can set a 4-digit PIN during signup for quick login. You can also update it in your profile settings.'},
-  {q:['history','past entries'],a:'Tap the My History tab in the worker app to see your last 7 days of shift entries.'},
-  {q:['chat','message','talk'],a:'Tap the Chat tab in the worker app to see all team chat rooms. Pick your team room or the Communication room for general chat. You can send text, files, and more.'},
-  {q:['profile','photo','avatar','picture'],a:'Go to My Profile tab in the worker app. You can upload a photo or pick an emoji avatar, update your phone number, and change your password.'},
-  {q:['salary','pay','wage'],a:'Your hourly rate is set by your manager. You can see it on your Profile tab once it\'s been added.'},
-  {q:['streak','fire'],a:'Your streak counter shows how many consecutive days you\'ve submitted a shift. Keep submitting daily to grow your streak!'},
-  {q:['official','manager','boss','access'],a:'Officials access the app via the Officials Access button on the home screen. They enter their role and 4-digit PIN to enter the manager dashboard.'},
-  {q:['pending','approval','waiting'],a:'After signing up, your manager needs to approve your account before you can log shifts. You\'ll see a pending message until then.'},
-  {q:['hello','hi','hey','help'],a:'Hi! I\'m the PROSRVC Assistant. I can help you with: logging in, signing up, submitting shifts, using chat, updating your profile, and more. Just ask!'},
-];
+// =========================================================
+// AI CHATBOT — powered by Claude (Anthropic API)
+// =========================================================
+let cbHistory = [];  // conversation history for multi-turn memory
 
-function cbAnswer(q){
-  q = q.toLowerCase();
-  for(const kb of cbKnowledge){
-    if(kb.q.some(kw=>q.includes(kw))) return kb.a;
-  }
-  return "I'm not sure about that one. Try asking your manager, or check the relevant tab in the app. You can also ask me about: login, signup, shifts, chat, profile, PIN, or salary.";
+// Build system prompt with full app context
+function buildSystemPrompt(){
+  const userName = CU ? displayName(CU) : 'a user';
+  const userTeam = CU ? (CU.team||CU.teamCode||'unknown') : 'unknown';
+  const userRole = CU ? (CU.role||'Worker') : 'unknown';
+  const isOfficial = !!currentOfficial;
+  const todayEntries = D.entries.filter(e=>e.date===todayStr()).length;
+  const activeMembers = D.users.filter(u=>u.status==='active').length;
+  const pendingMembers = D.users.filter(u=>u.status==='pending').length;
+  const upcomingEvents = D.events.filter(e=>e.date>=todayStr()).slice(0,3).map(e=>`${e.title} on ${e.date}`).join(', ') || 'none';
+
+  return `You are the PROSRVC Assistant — a smart, friendly helper built into the PROSRVC Productivity Tracker app used by a warehouse team.
+
+CURRENT USER: ${userName} | Role: ${userRole} | Team: ${userTeam} | ${isOfficial ? 'Officials access' : 'Worker access'}
+
+APP CONTEXT RIGHT NOW:
+- Active members: ${activeMembers}
+- Pending approvals: ${pendingMembers}
+- Shifts submitted today: ${todayEntries}
+- Upcoming events: ${upcomingEvents}
+
+WHAT THIS APP DOES:
+- Workers log their daily shift tasks (custom fields + quantities) once per day
+- Managers/Officials track team output, approve members, manage team codes, view growth charts
+- Team Representatives manage their own team — approvals, removals, team codes
+- Chat rooms per team (workers only see their own team + Communication room)
+- Event Manager role can add company events — workers get notified
+- Avatar builder for profile pictures (male/female hair options, skin tones, extras like flowers, crowns etc)
+- Streak counter — consecutive days logged (Sundays don't break streaks)
+- App Management (PIN 6558) has full control — permissions, danger zone, all data
+- Officials PIN default is 1234 (changeable in Settings)
+- PWA — installable from browser, works offline
+
+ROLES:
+Workers: Warehouse Worker, Team Representative, Sales Person B2B/Amazon, Human Representative, Management Director, Accountant, Data Analyst, Developer, CEO
+Officials: same roles + Event Manager + App Management
+
+TEAMS: Watch Buds Tabs, Testing, Repair, Inventory, Accessories, Amazon, B2B Sales, Laptop, Shipping
+
+SALARY: Only visible to CEO, Management Director, Human Representative, and App Management (configurable in Permissions tab)
+
+YOUR JOB:
+- Answer ANY question the user has — about the app, their team, general knowledge, anything
+- Be concise and friendly — short answers unless detail is needed
+- If asked about something outside the app, answer from your general knowledge
+- Use web search when asked about current events, news, prices, or anything time-sensitive
+- Never make up app data — only use what's in the context above
+- Respond in the same language the user writes in
+- Keep responses under 150 words unless the user asks for detail`;
 }
 
-function toggleChatbot(){
-  const win = document.getElementById('chatbot-win');
-  win.classList.toggle('open');
-}
-
-function sendCbMsg(){
+async function sendCbMsg(){
   const input = document.getElementById('cb-input');
-  const text = input.value.trim(); if(!text) return;
+  const text = input.value.trim();
+  if(!text) return;
+
   const msgs = document.getElementById('cb-msgs');
-  msgs.innerHTML += `<div class="cb-msg user">${text}</div>`;
-  input.value='';
-  setTimeout(()=>{
-    msgs.innerHTML += `<div class="cb-msg bot">${cbAnswer(text)}</div>`;
-    msgs.scrollTop = msgs.scrollHeight;
-  },400);
+
+  // Add user message to UI
+  msgs.innerHTML += `<div class="cb-msg user">${escHtml(text)}</div>`;
+  input.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Add to history
+  cbHistory.push({ role: 'user', content: text });
+
+  // Show typing indicator
+  const typingId = 'cb-typing-' + Date.now();
+  msgs.innerHTML += `<div class="cb-msg bot" id="${typingId}" style="color:#555;font-style:italic;">Thinking...</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: buildSystemPrompt(),
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+        }],
+        messages: cbHistory
+      })
+    });
+
+    const data = await response.json();
+
+    // Extract text from response (handles tool use + text blocks)
+    let reply = '';
+    if(data.content && Array.isArray(data.content)){
+      // Collect all text blocks
+      reply = data.content
+        .filter(b => b.type === 'text')
+        .map(b => b.text)
+        .join('\n')
+        .trim();
+
+      // If no text yet (only tool_use blocks), make a second call with tool results
+      if(!reply && data.stop_reason === 'tool_use'){
+        // Add assistant response to history
+        cbHistory.push({ role: 'assistant', content: data.content });
+
+        // Build tool results
+        const toolResults = data.content
+          .filter(b => b.type === 'tool_use')
+          .map(b => ({
+            type: 'tool_result',
+            tool_use_id: b.id,
+            content: 'Search results will be provided by the API'
+          }));
+
+        cbHistory.push({ role: 'user', content: toolResults });
+
+        // Second call
+        const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1024,
+            system: buildSystemPrompt(),
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+            messages: cbHistory
+          })
+        });
+        const d2 = await r2.json();
+        if(d2.content){
+          reply = d2.content.filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+          cbHistory.push({ role: 'assistant', content: d2.content });
+        }
+      } else {
+        cbHistory.push({ role: 'assistant', content: data.content });
+      }
+    }
+
+    if(!reply) reply = "Sorry, I couldn't get a response. Please try again.";
+
+    // Keep history to last 20 messages to avoid token limits
+    if(cbHistory.length > 20) cbHistory = cbHistory.slice(-20);
+
+    // Remove typing indicator and show reply
+    const typingEl = document.getElementById(typingId);
+    if(typingEl) typingEl.remove();
+
+    // Format reply — convert **bold** and newlines
+    const formatted = reply
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+
+    msgs.innerHTML += `<div class="cb-msg bot">${formatted}</div>`;
+
+  } catch(err) {
+    const typingEl = document.getElementById(typingId);
+    if(typingEl) typingEl.textContent = "Connection error. Check your internet and try again.";
+  }
+
   msgs.scrollTop = msgs.scrollHeight;
 }
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearChatHistory(){
+  cbHistory = [];
+  const msgs = document.getElementById('cb-msgs');
+  msgs.innerHTML = '<div class="cb-msg bot">Chat cleared! How can I help you?</div>';
+}
+
 
 // =========================================================
 // APP SELF-ANALYSIS SUGGESTIONS
@@ -2762,11 +2897,20 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 <button id="chatbot-fab" onclick="toggleChatbot()" title="App Assistant">🤖</button>
 <div id="chatbot-win">
   <div class="cb-hdr">
-    <div class="cb-title">🤖 PROSRVC Assistant</div>
-    <button class="cb-close" onclick="toggleChatbot()">×</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:28px;height:28px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;">🤖</div>
+      <div>
+        <div class="cb-title">PROSRVC Assistant</div>
+        <div style="font-size:9px;color:#27ae60;letter-spacing:1px;">● AI-powered · Web search enabled</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button onclick="clearChatHistory()" title="Clear chat" style="background:transparent;border:none;color:#555;font-size:12px;cursor:pointer;padding:2px 6px;">Clear</button>
+      <button class="cb-close" onclick="toggleChatbot()">×</button>
+    </div>
   </div>
   <div class="cb-msgs" id="cb-msgs">
-    <div class="cb-msg bot">Hi! I'm your PROSRVC Assistant. Ask me anything about using the app — login, shifts, chat, profile, and more!</div>
+    <div class="cb-msg bot">Hi! I'm your PROSRVC Assistant powered by AI. I can answer anything — app questions, general knowledge, current news, anything. Just ask! 💬</div>
   </div>
   <div class="cb-input-row">
     <input class="cb-input" id="cb-input" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendCbMsg()">
