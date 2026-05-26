@@ -2125,7 +2125,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   // Setup live previews and PWA
   setupLivePreview();
   setupOfficialPreview();
-  injectPWAManifest();
 });
 
 // =========================================================
@@ -2952,8 +2951,12 @@ function installApp() {
 
 
 // Register service worker for offline use (only on HTTPS)
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', {scope: './'})
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW failed:', err));
+  });
 }
 </script>
 
