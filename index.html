@@ -1326,6 +1326,66 @@ let D = {};
 let CU = null; // current user
 let mgrBuf = '', wrkBuf = '', wrkLoginName = '', currentOfficialRole = '', currentOfficial = null;
 
+// =========================================================
+// PIN PAD — shared for manager + worker quick-login
+// =========================================================
+function pinPress(mode, d){
+  if(mode === 'mgr'){
+    if(mgrBuf.length >= 4) return;
+    mgrBuf += d;
+    for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled', i < mgrBuf.length);
+    if(mgrBuf.length === 4) setTimeout(checkMgrPin, 200);
+  } else {
+    if(wrkBuf.length >= 4) return;
+    wrkBuf += d;
+    for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.toggle('filled', i < wrkBuf.length);
+    if(wrkBuf.length === 4) setTimeout(checkWrkPin, 200);
+  }
+}
+
+function pinBack(mode){
+  if(mode === 'mgr'){
+    mgrBuf = mgrBuf.slice(0,-1);
+    for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled', i < mgrBuf.length);
+  } else {
+    wrkBuf = wrkBuf.slice(0,-1);
+    for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.toggle('filled', i < wrkBuf.length);
+  }
+}
+
+function pinClear(mode){
+  if(mode === 'mgr'){
+    mgrBuf = '';
+    for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.remove('filled');
+  } else {
+    wrkBuf = '';
+    for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.remove('filled');
+  }
+}
+
+function checkWrkPin(){
+  // Find user by name typed in worker PIN screen
+  const name = document.getElementById('wpin-name') ? document.getElementById('wpin-name').value.trim() : (CU ? CU.name : '');
+  const u = D.users.find(u =>
+    (u.name.toLowerCase() === name.toLowerCase() ||
+     (u.prefName && u.prefName.toLowerCase() === name.toLowerCase()))
+    && u.pin && wrkBuf === u.pin
+  );
+  if(u){
+    wrkBuf=''; pinClear('wrk');
+    if(u.status === 'removed'){
+      const e = document.getElementById('wpin-err');
+      if(e){ e.style.display='block'; e.textContent='Your account has been removed. Contact your manager.'; }
+      return;
+    }
+    CU = u; openWorkerWithNotifs();
+  } else {
+    const e = document.getElementById('wpin-err');
+    if(e){ e.style.display='block'; e.textContent='Incorrect PIN. Try again.'; }
+    wrkBuf=''; pinClear('wrk');
+  }
+}
+
 function setOfficialRole(val){ currentOfficialRole = val; }
 let taskFields = [];
 
