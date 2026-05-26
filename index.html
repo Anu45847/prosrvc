@@ -603,13 +603,33 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
 <div id="s-login" class="screen auth-wrap">
   <div class="auth-card">
     <img id="login-logo" class="auth-logo" alt="PROSRVC">
-    <div class="auth-title">Worker Login</div>
-    <div class="auth-sub">Sign in to log your shift</div>
-    <div class="fg"><div class="fl">Name</div><input id="ln-name" class="fi" type="text" placeholder="Your name or preferred name"></div>
-    <div class="fg"><div class="fl">Password</div><input id="ln-pass" class="fi" type="password" placeholder="••••••••"></div>
-    <div class="err" id="ln-err">Name or password is incorrect.</div>
-    <button class="btn-p" onclick="doLogin()">LOGIN</button>
-    <div class="al">No account? <span onclick="go('s-signup')">Sign up here</span></div>
+    <!-- Saved session card — shown if user chose "keep me logged in" -->
+    <div id="ln-saved-card" style="display:none;background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:10px;">👤 Welcome Back</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div id="ln-saved-av" style="width:48px;height:48px;border-radius:50%;background:#e5e5e5;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;"></div>
+        <div>
+          <div id="ln-saved-name" style="font-size:15px;font-weight:700;color:#222;"></div>
+          <div id="ln-saved-role" style="font-size:11px;color:#888;margin-top:2px;"></div>
+        </div>
+      </div>
+      <button class="btn-p" onclick="loginSavedUser()" style="margin-bottom:8px;">Continue as <span id="ln-saved-btn-name"></span></button>
+      <button onclick="clearSavedUser()" style="background:transparent;border:none;color:#aaa;font-size:12px;cursor:pointer;width:100%;padding:4px;">Not you? Switch account</button>
+    </div>
+    <!-- Normal login form — hidden when saved session exists -->
+    <div id="ln-form">
+      <div class="auth-title">Worker Login</div>
+      <div class="auth-sub">Sign in to log your shift</div>
+      <div class="fg"><div class="fl">Name</div><input id="ln-name" class="fi" type="text" placeholder="Your name or preferred name"></div>
+      <div class="fg"><div class="fl">Password</div><input id="ln-pass" class="fi" type="password" placeholder="••••••••"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="ln-remember" style="width:16px;height:16px;accent-color:var(--red);" checked>
+        <span style="font-size:12px;color:#888;">Keep me logged in on this device</span>
+      </label>
+      <div class="err" id="ln-err">Name or password is incorrect.</div>
+      <button class="btn-p" onclick="doLogin()">LOGIN</button>
+      <div class="al">No account? <span onclick="go('s-signup')">Sign up here</span></div>
+    </div>
     <div class="al"><span onclick="go('s-home')">← Back</span></div>
   </div>
 </div>
@@ -753,6 +773,10 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="fg"><div class="fl">Name</div><input id="ol-name" class="fi" type="text" placeholder="Your name or preferred name"></div>
     <div class="fg"><div class="fl">Password</div><input id="ol-pass" class="fi" type="password" placeholder="••••••••"></div>
     <div class="err" id="ol-err">Name or password is incorrect.</div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" id="ol-remember" style="width:16px;height:16px;accent-color:var(--red);" checked>
+      <span style="font-size:12px;color:#888;">Keep me logged in on this device</span>
+    </label>
     <button class="btn-p" onclick="doOfficialLogin()">LOGIN</button>
     <div class="al">New official? <span onclick="go('s-official-signup')">Create account</span></div>
     <div class="al"><span onclick="go('s-home')">← Back</span></div>
@@ -1463,6 +1487,7 @@ updateClock(); setInterval(updateClock,1000);
 function go(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if(id==='s-login') checkSavedSession();
 }
 
 // =========================================================
@@ -1471,9 +1496,9 @@ function go(id){
 function doLogin(){
   const input=document.getElementById('ln-name').value.trim();
   const pass=document.getElementById('ln-pass').value;
+  const remember=document.getElementById('ln-remember')?.checked !== false;
   const err=document.getElementById('ln-err');
   err.classList.remove('show');
-  // Match by preferred name OR full name (case-insensitive)
   const u=D.users.find(u=>
     (u.name.toLowerCase()===input.toLowerCase() ||
     (u.prefName && u.prefName.toLowerCase()===input.toLowerCase()))
@@ -1484,7 +1509,77 @@ function doLogin(){
     err.textContent='Your account has been removed. Contact your Team Representative or Manager to be re-added.';
     err.classList.add('show'); return;
   }
+  // Save session if remember is checked
+  if(remember){
+    localStorage.setItem('prosrvc_session', JSON.stringify({name:u.name, type:'worker', savedAt:Date.now()}));
+  } else {
+    localStorage.removeItem('prosrvc_session');
+  }
   CU=u; openWorkerWithNotifs();
+}
+
+function loginSavedUser(){
+  const session = getSavedSession();
+  if(!session) return;
+  const u = D.users.find(u=>u.name===session.name);
+  if(!u){ clearSavedUser(); return; }
+  if(u.status==='removed'){
+    clearSavedUser();
+    alert('Your account has been removed. Contact your manager.');
+    return;
+  }
+  CU=u; openWorkerWithNotifs();
+}
+
+function getSavedSession(){
+  try {
+    const raw = localStorage.getItem('prosrvc_session');
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    // Session valid for 30 days
+    if(Date.now() - s.savedAt > 30 * 24 * 60 * 60 * 1000){
+      localStorage.removeItem('prosrvc_session');
+      return null;
+    }
+    return s;
+  } catch(e){ return null; }
+}
+
+function clearSavedUser(){
+  localStorage.removeItem('prosrvc_session');
+  document.getElementById('ln-saved-card').style.display='none';
+  document.getElementById('ln-form').style.display='block';
+}
+
+function checkSavedSession(){
+  const session = getSavedSession();
+  if(!session) return;
+  if(session.type === 'worker'){
+    const u = D.users.find(u=>u.name===session.name);
+    if(!u || u.status==='removed'){ clearSavedUser(); return; }
+    // Show saved card
+    const card = document.getElementById('ln-saved-card');
+    const form = document.getElementById('ln-form');
+    if(card && form){
+      // Populate card
+      const av = document.getElementById('ln-saved-av');
+      if(av){
+        if(u.avatar && u.avatar.startsWith('data:')){
+          av.innerHTML = `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+          av.textContent = u.avatar || initials(u.name);
+        }
+      }
+      const nameEl = document.getElementById('ln-saved-name');
+      const roleEl = document.getElementById('ln-saved-role');
+      const btnName = document.getElementById('ln-saved-btn-name');
+      if(nameEl) nameEl.textContent = displayName(u);
+      if(roleEl) roleEl.textContent = (u.role||'') + (u.team ? ' · '+u.team : '');
+      if(btnName) btnName.textContent = displayName(u);
+      card.style.display = 'block';
+      form.style.display = 'none';
+    }
+  }
 }
 
 function showTeamRequest(){
@@ -1605,6 +1700,7 @@ function doOfficialSignup(){
 function doOfficialLogin(){
   const input=document.getElementById('ol-name').value.trim();
   const pass=document.getElementById('ol-pass').value;
+  const remember=document.getElementById('ol-remember')?.checked !== false;
   const err=document.getElementById('ol-err');
   err.classList.remove('show');
   const o=D.officials.find(o=>
@@ -1613,6 +1709,11 @@ function doOfficialLogin(){
     &&o.password===pass
   );
   if(!o){ err.classList.add('show'); return; }
+  if(remember){
+    localStorage.setItem('prosrvc_off_session', JSON.stringify({name:o.name, type:'official', savedAt:Date.now()}));
+  } else {
+    localStorage.removeItem('prosrvc_off_session');
+  }
   currentOfficial=o; openOfficials();
 }
 
@@ -2068,9 +2169,13 @@ window.addEventListener('DOMContentLoaded', ()=>{
   // Inject real logo into all PROSRVC img tags
   const src = 'data:image/jpeg;base64,' + LOGO_B64;
   document.querySelectorAll('img[alt="PROSRVC"]').forEach(img => { img.src = src; });
-  // Setup live previews and PWA
+  // Setup live previews
   setupLivePreview();
   setupOfficialPreview();
+  // Auto-login if saved session exists
+  checkAutoLogin();
+  // Install wall
+  showInstallWall();
 });
 
 // =========================================================
@@ -3134,8 +3239,37 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
-</script>
+function logout(){
+  const hasSaved = localStorage.getItem('prosrvc_session') || localStorage.getItem('prosrvc_off_session');
+  if(hasSaved && confirm('Stay logged in on this device?')){
+    CU=null; currentOfficial=null; currentOfficialRole=''; go('s-home'); return;
+  }
+  localStorage.removeItem('prosrvc_session');
+  localStorage.removeItem('prosrvc_off_session');
+  CU=null; currentOfficial=null; currentOfficialRole=''; go('s-home');
+}
 
+function checkAutoLogin(){
+  const ws = getSavedSession();
+  if(ws && ws.type==='worker'){
+    const u = D.users.find(u=>u.name===ws.name);
+    if(u && u.status==='active'){ CU=u; openWorkerWithNotifs(); return; }
+    localStorage.removeItem('prosrvc_session');
+  }
+  try {
+    const raw = localStorage.getItem('prosrvc_off_session');
+    if(raw){
+      const s = JSON.parse(raw);
+      if(Date.now() - s.savedAt < 30*24*60*60*1000){
+        const o = D.officials.find(o=>o.name===s.name);
+        if(o){ currentOfficial=o; openOfficials(); return; }
+      }
+      localStorage.removeItem('prosrvc_off_session');
+    }
+  } catch(e){}
+}
+
+</script>
 
 
 </body>
