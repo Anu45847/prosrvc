@@ -878,16 +878,21 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <button class="hdr-out" onclick="logout()">Exit</button>
     </div>
   </div>
-  <div class="mnav">
-    <div class="mtab active" onclick="switchAMTab('data',this)">Data</div>
-    <div class="mtab" onclick="switchAMTab('users',this)">All Users</div>
-    <div class="mtab" onclick="switchAMTab('entries',this)">All Entries</div>
-    <div class="mtab" onclick="switchAMTab('permissions',this)">🔑 Permissions</div>
-    <div class="mtab" onclick="switchAMTab('suggestions',this)">💡 Suggestions</div>
-    <div class="mtab" onclick="switchAMTab('settings',this)">⚙️ Settings</div>
-    <div class="mtab" onclick="switchAMTab('danger',this)" style="color:#f55;">Danger Zone</div>
+  <div class="mnav" style="overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+    <div class="mtab active" onclick="switchAMTab('data',this)" style="white-space:nowrap;">Data</div>
+    <div class="mtab" onclick="switchAMTab('notifications',this)" style="white-space:nowrap;">🔔 Notifications <span id="am-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
+    <div class="mtab" onclick="switchAMTab('users',this)" style="white-space:nowrap;">All Users</div>
+    <div class="mtab" onclick="switchAMTab('entries',this)" style="white-space:nowrap;">All Entries</div>
+    <div class="mtab" onclick="switchAMTab('permissions',this)" style="white-space:nowrap;">🔑 Permissions</div>
+    <div class="mtab" onclick="switchAMTab('suggestions',this)" style="white-space:nowrap;">💡 Suggestions</div>
+    <div class="mtab" onclick="switchAMTab('settings',this)" style="white-space:nowrap;">⚙️ Settings</div>
+    <div class="mtab" onclick="switchAMTab('danger',this)" style="white-space:nowrap;color:#f55;">Danger Zone</div>
   </div>
   <div class="mbody">
+    <div class="tpanel" id="am-notifications">
+      <div class="sec-title">🔔 Notifications</div>
+      <div id="am-notif-list"></div>
+    </div>
     <div class="tpanel active" id="am-data">
       <div class="sec-title">App Data Summary</div>
       <div class="stat-grid" id="am-stats"></div>
@@ -1051,7 +1056,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <button class="hdr-out" onclick="logout()">Logout</button>
     </div>
   </div>
-  <div class="mnav">
+  <div class="mnav" style="overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
     <div class="mtab active" onclick="switchOffTab('overview',this)">Overview</div>
     <div class="mtab" id="off-people-tab" onclick="switchOffTab('people',this)" style="display:none;">👥 People</div>
     <div class="mtab" onclick="switchOffTab('events',this)">📅 Events</div>
@@ -1265,7 +1270,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <button class="hdr-out" onclick="logout()">Exit</button>
     </div>
   </div>
-  <div class="mnav">
+  <div class="mnav" style="overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
     <div class="mtab active" onclick="switchMTab('dashboard',this)">Dashboard</div>
     <div class="mtab" onclick="switchMTab('growth',this)">Growth</div>
     <div class="mtab" id="mgr-members-tab" onclick="switchMTab('members',this)">Members</div>
@@ -2053,6 +2058,34 @@ let cbThinking = false;
 // =========================================================
 // APP SELF-ANALYSIS SUGGESTIONS
 // =========================================================
+function renderAMNotifications(){
+  // App Management sees ALL notifications
+  const all = [...(D.notifications||[])].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const el = document.getElementById('am-notif-list');
+  if(!el) return;
+  const html = all.length ? all.map(n=>{
+    const icon = n.type==='join_request'?'📨':n.eventId?'📅':'🔔';
+    const unread = !n.read||n.read.length===0;
+    return `<div class="notif-card ${unread?'unread':'read'}">
+      <div class="notif-icon">${icon}</div>
+      <div style="flex:1;">
+        <div class="notif-body-title">${n.title}</div>
+        <div class="notif-body-text">${n.body||''}</div>
+        ${n.type==='join_request'?`<div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="bsm bapprove" onclick="approveUser('${n.worker}');renderAMNotifications();">APPROVE</button>
+          <button class="bsm breject" onclick="rejectUser('${n.worker}');renderAMNotifications();">REJECT</button>
+        </div>`:''}
+        <div class="notif-meta">${n.date} ${n.time}</div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No notifications yet.</div>';
+  el.innerHTML = html;
+  // Update AM badge
+  const unreadCount = all.filter(n=>!n.read||n.read.length===0).length;
+  const badge = document.getElementById('am-notif-badge');
+  if(badge){ badge.style.display=unreadCount>0?'inline':'none'; badge.textContent=unreadCount>9?'9+':unreadCount; }
+}
+
 function renderPendingEmails(){
   const emails = D.pendingEmails||[];
   if(!emails.length) return '';
@@ -2240,6 +2273,7 @@ function switchAMTab(tab,el){
   if(el) el.classList.add('active');
   document.getElementById('am-'+tab).classList.add('active');
   if(tab==='data') renderAMData();
+  if(tab==='notifications'){ renderAMNotifications(); }
   if(tab==='users') renderAMUsers();
   if(tab==='entries') renderAMEntries();
   if(tab==='suggestions') renderSuggestions();
@@ -2318,6 +2352,7 @@ function checkMgrPin(){
     currentOfficialRole='App Management';
     go('s-appmgmt');
     switchAMTab('data', document.querySelector('#s-appmgmt .mtab'));
+    setTimeout(renderAMNotifications, 300);
     return;
   }
   // Officials PIN
