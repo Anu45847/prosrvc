@@ -630,24 +630,14 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       </div>
     </div>
     <div class="auth-title">Create Account</div>
-    <div class="auth-sub">Get your team code from your manager first</div>
-    <div class="fg"><div class="fl">Full Name</div><input id="su-name" class="fi" type="text" placeholder="Your full name"></div>
-    <div class="fg"><div class="fl">Preferred Name <span style="color:#bbb;font-weight:400;">(optional)</span></div><input id="su-prefname" class="fi" type="text" placeholder="What people call you, e.g. Alex, J, Big Mike"></div>
+    <div class="auth-sub">Fill in your details then request to join your team</div>
+    <div class="fg"><div class="fl">Full Name</div><input id="su-name" class="fi" type="text" placeholder="Your full name" oninput="updateSignupPreview()"></div>
+    <div class="fg"><div class="fl">Preferred Name <span style="color:#bbb;font-weight:400;">(optional)</span></div><input id="su-prefname" class="fi" type="text" placeholder="What people call you, e.g. Alex, J, Big Mike" oninput="updateSignupPreview()"></div>
     <div class="fg"><div class="fl">Password</div><input id="su-pass" class="fi" type="password" placeholder="Choose a password"></div>
-    <div class="fg"><div class="fl">Phone Number (optional)</div><input id="su-phone" class="fi" type="tel" placeholder="e.g. 07700 900123"></div>
-    <div class="fg"><div class="fl">Team Code</div><input id="su-code" class="fi" type="text" placeholder="e.g. TEAM-A1" style="text-transform:uppercase;"></div>
-    <div class="fg">
-      <div class="fl">Your Team</div>
-      <select id="su-team" class="fi" style="cursor:pointer;">
-        <option value="">— Select your team —</option>
-        <option>Watch Buds Tabs</option><option>Testing</option><option>Repair</option>
-        <option>Inventory</option><option>Accessories</option><option>Amazon</option>
-        <option>B2B Sales</option><option>Laptop</option><option>Shipping</option>
-      </select>
-    </div>
+    <div class="fg"><div class="fl">Phone Number (optional)</div><input id="su-phone" class="fi" type="tel" placeholder="e.g. 07700 900123" oninput="updateSignupPreview()"></div>
     <div class="fg">
       <div class="fl">Your Role / Profession</div>
-      <select id="su-role" class="fi" style="cursor:pointer;">
+      <select id="su-role" class="fi" style="cursor:pointer;" onchange="updateSignupPreview()">
         <option value="">— Select your role —</option>
         <option>Warehouse Worker</option><option>Team Representative</option>
         <option>Sales Person – B2B</option><option>Sales Person – Amazon</option>
@@ -670,7 +660,22 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <div style="font-size:11px;color:#aaa;">Use this PIN for quick login instead of password.</div>
     </div>
     <div class="err" id="su-err">Something went wrong.</div>
-    <button class="btn-p" onclick="doSignup()">CREATE ACCOUNT</button>
+    <!-- Step 2: Team join request — shown after form is filled -->
+    <div id="su-team-request" style="display:none;margin-bottom:14px;">
+      <div style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:14px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:3px;color:var(--red);text-transform:uppercase;margin-bottom:10px;">📨 Send Join Request To</div>
+        <select id="su-team" class="fi" style="cursor:pointer;background:#fff;color:#111;border-color:#ddd;margin-bottom:10px;" onchange="updateTeamRequestBtn()">
+          <option value="">— Select your team —</option>
+          <option>Watch Buds Tabs</option><option>Testing</option><option>Repair</option>
+          <option>Inventory</option><option>Accessories</option><option>Amazon</option>
+          <option>B2B Sales</option><option>Laptop</option><option>Shipping</option>
+        </select>
+        <button id="su-request-btn" class="btn-p" onclick="doSignup()" style="display:none;background:#27ae60;font-size:14px;padding:14px;">
+          📨 Send Request to Join <span id="su-request-team-name">this team</span>
+        </button>
+      </div>
+    </div>
+    <button id="su-next-btn" class="btn-p" onclick="showTeamRequest()">Next →</button>
     <div class="al">Already have an account? <span onclick="go('s-login')">Login</span></div>
     <div class="al"><span onclick="go('s-home')">← Back</span></div>
   </div>
@@ -1338,7 +1343,43 @@ function loadD(){
   if(!D.teamCodes) D.teamCodes = [{code:'TEAM-A1',name:'Phones Team'},{code:'TEAM-B1',name:'Tablets Team'}];
   if(!D.pin) D.pin = '1234';
 }
-function saveD(){ localStorage.setItem('prosrvc', JSON.stringify(D)); }
+function saveD(){
+  localStorage.setItem('prosrvc', JSON.stringify(D));
+}
+
+// Auto-save with permission toast
+let _pendingSave = null;
+let _saveTimeout = null;
+
+function autoSave(label, _unused, applyFn){
+  if(_saveTimeout) clearTimeout(_saveTimeout);
+  const existing = document.getElementById('_autosave_toast');
+  if(existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = '_autosave_toast';
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:14px 16px;z-index:99998;display:flex;align-items:center;gap:12px;font-family:Barlow,sans-serif;min-width:280px;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.5);';
+  toast.innerHTML = '<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;">Save Changes?</div><div style="font-size:11px;color:#888;">'+label+'</div></div>'
+    +'<button onclick="confirmAutoSave()" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:Barlow,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">Save</button>'
+    +'<button onclick="cancelAutoSave()" style="background:transparent;border:1px solid #333;color:#888;border-radius:8px;padding:8px 10px;font-family:Barlow,sans-serif;font-size:12px;cursor:pointer;margin-left:4px;">Cancel</button>';
+  document.body.appendChild(toast);
+  _pendingSave = applyFn;
+  _saveTimeout = setTimeout(()=>{ const t=document.getElementById('_autosave_toast'); if(t) t.remove(); _pendingSave=null; }, 8000);
+}
+
+function confirmAutoSave(){
+  if(_pendingSave) _pendingSave();
+  _pendingSave = null;
+  if(_saveTimeout) clearTimeout(_saveTimeout);
+  const t = document.getElementById('_autosave_toast');
+  if(t){ t.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--success);padding:0 4px;">✓ Saved</div>'; setTimeout(()=>t.remove(),1500); }
+}
+
+function cancelAutoSave(){
+  _pendingSave = null;
+  if(_saveTimeout) clearTimeout(_saveTimeout);
+  const t = document.getElementById('_autosave_toast');
+  if(t) t.remove();
+}
 loadD();
 
 // Inject real logo into all img tags
@@ -1386,11 +1427,43 @@ function doLogin(){
   CU=u; openWorkerWithNotifs();
 }
 
+function showTeamRequest(){
+  // Validate required fields first
+  const name=document.getElementById('su-name').value.trim();
+  const pass=document.getElementById('su-pass').value;
+  const role=document.getElementById('su-role').value;
+  const err=document.getElementById('su-err');
+  err.classList.remove('show');
+  if(!name||!pass||!role){
+    err.textContent='Please fill in your name, password and role first.';
+    err.classList.add('show'); return;
+  }
+  if(D.users.find(u=>u.name.toLowerCase()===name.toLowerCase())){
+    err.textContent='This name is already registered.';
+    err.classList.add('show'); return;
+  }
+  // Show team request section
+  document.getElementById('su-team-request').style.display='block';
+  document.getElementById('su-next-btn').style.display='none';
+  document.getElementById('su-team-request').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function updateTeamRequestBtn(){
+  const team = document.getElementById('su-team').value;
+  const btn = document.getElementById('su-request-btn');
+  const label = document.getElementById('su-request-team-name');
+  if(team){
+    if(label) label.textContent = team;
+    if(btn) btn.style.display='block';
+  } else {
+    if(btn) btn.style.display='none';
+  }
+}
+
 function doSignup(){
   const name=document.getElementById('su-name').value.trim();
   const prefName=document.getElementById('su-prefname').value.trim()||null;
   const pass=document.getElementById('su-pass').value;
-  const code=document.getElementById('su-code').value.trim().toUpperCase();
   const role=document.getElementById('su-role').value;
   const team=document.getElementById('su-team').value;
   const phone=document.getElementById('su-phone').value.trim();
@@ -1398,318 +1471,55 @@ function doSignup(){
   const avatar=avatarSelections['su']||null;
   const err=document.getElementById('su-err');
   err.classList.remove('show'); err.style.background=''; err.style.borderColor=''; err.style.color='';
-  if(!name||!pass||!code||!role||!team){ err.textContent='Please fill in all required fields including team and role.'; err.classList.add('show'); return; }
-  const tc=D.teamCodes.find(t=>t.code===code);
-  if(!tc){ err.textContent='Team code not found. Ask your manager.'; err.classList.add('show'); return; }
-  if(D.users.find(u=>u.name.toLowerCase()===name.toLowerCase())){ err.textContent='Name already registered.'; err.classList.add('show'); return; }
-  if(pin && (pin.length!==4||!/^\d+$/.test(pin))){ err.textContent='PIN must be exactly 4 digits.'; err.classList.add('show'); return; }
-  D.users.push({name,prefName,password:pass,pin:pin||null,role,team,phone:phone||null,avatar,teamCode:code,teamName:tc.name,status:'pending'});
+
+  if(!name||!pass||!role||!team){
+    err.textContent='Please fill in all required fields and select a team.';
+    err.classList.add('show'); return;
+  }
+  if(D.users.find(u=>u.name.toLowerCase()===name.toLowerCase())){
+    err.textContent='Name already registered.'; err.classList.add('show'); return;
+  }
+  if(pin && (pin.length!==4||!/^\d+$/.test(pin))){
+    err.textContent='PIN must be exactly 4 digits.'; err.classList.add('show'); return;
+  }
+
+  // Find a team code for this team (if any exist), else use team name as code
+  const tc = D.teamCodes.find(t=>t.name===team) || {code:team.substring(0,8).toUpperCase().replace(/\s/g,'-'), name:team};
+
+  // Create user with pending status + join request timestamp
+  const newUser = {
+    name, prefName, password:pass, pin:pin||null, role, team,
+    phone:phone||null, avatar, teamCode:tc.code, teamName:tc.name,
+    status:'pending', joinRequest:true, requestedAt:new Date().toISOString()
+  };
+  D.users.push(newUser);
+
+  // Create notification for Team Rep + higher-ups
+  const notif = {
+    id: Date.now(),
+    type: 'join_request',
+    title: '📨 New Join Request',
+    body: (prefName||name) + ' wants to join the ' + team + ' team as ' + role,
+    worker: name,
+    team: team,
+    role: role,
+    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    date: todayStr(),
+    for: ['Team Representative', 'CEO', 'Management Director', 'Human Representative', 'App Management'],
+    forTeam: team,
+    read: []
+  };
+  if(!D.notifications) D.notifications = [];
+  D.notifications.push(notif);
+
   saveD();
   err.style.background='#efe'; err.style.borderColor='#afa'; err.style.color='#060';
-  err.textContent='Account created! Wait for manager approval.'; err.classList.add('show');
-  setTimeout(()=>go('s-home'),2500);
+  err.textContent='✓ Request sent to the ' + team + ' team! Wait for approval.';
+  err.classList.add('show');
+  setTimeout(()=>go('s-home'), 2800);
 }
 
-// =========================================================
-// PIN LOGIC (shared for manager + worker quick-login)
-// =========================================================
-function pinPress(mode, d){
-  if(mode==='mgr'){
-    if(mgrBuf.length>=4) return;
-    mgrBuf+=d;
-    for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<mgrBuf.length);
-    if(mgrBuf.length===4) setTimeout(()=>checkMgrPin(),200);
-  } else {
-    if(wrkBuf.length>=4) return;
-    wrkBuf+=d;
-    for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.toggle('filled',i<wrkBuf.length);
-    if(wrkBuf.length===4) setTimeout(()=>checkWrkPin(),200);
-  }
-}
-function pinBack(mode){
-  if(mode==='mgr'){ mgrBuf=mgrBuf.slice(0,-1); for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<mgrBuf.length); }
-  else { wrkBuf=wrkBuf.slice(0,-1); for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.toggle('filled',i<wrkBuf.length); }
-}
-function pinClear(mode){
-  if(mode==='mgr'){ mgrBuf=''; for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.remove('filled'); }
-  else { wrkBuf=''; for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.remove('filled'); }
-}
-function checkWrkPin(){
-  const u=D.users.find(u=>u.name.toLowerCase()===wrkLoginName.toLowerCase());
-  if(u && u.pin && wrkBuf===u.pin){ wrkBuf=''; pinClear('wrk'); if(u.status==='removed'){ document.getElementById('wpin-err').style.display='block'; document.getElementById('wpin-err').textContent='Your account has been removed. Contact your manager.'; return; } CU=u; openWorkerWithNotifs(); }
-  else { document.getElementById('wpin-err').style.display='block'; wrkBuf=''; pinClear('wrk'); }
-}
 
-// Allow worker to go to PIN screen from login (if they have a PIN set)
-function tryWorkerPin(name){
-  const u=D.users.find(u=>u.name.toLowerCase()===name.toLowerCase());
-  if(u&&u.pin){ wrkLoginName=u.name; document.getElementById('wpin-title').textContent='Welcome, '+u.name.split(' ')[0]+'!'; go('s-worker-pin'); return true; }
-  return false;
-}
-
-// =========================================================
-// WORKER APP
-// =========================================================
-function openWorker(){
-  go('s-worker');
-  document.getElementById('w-av').textContent=initials(CU.name);
-  document.getElementById('w-name').textContent=displayName(CU);
-  const today=todayStr();
-  const submitted=D.entries.find(e=>e.worker===CU.name&&e.date===today);
-  const pending=CU.status==='pending';
-  const removed=CU.status==='removed';
-  const pmsg = document.getElementById('pending-msg');
-  if(removed){
-    pmsg.style.display='block';
-    pmsg.style.background='rgba(215,43,43,.1)';
-    pmsg.style.borderColor='rgba(215,43,43,.3)';
-    pmsg.style.color='var(--red)';
-    pmsg.textContent='🚫 Your account has been removed. Contact your Team Representative or Manager to be reinstated.';
-  } else {
-    pmsg.style.background=''; pmsg.style.borderColor=''; pmsg.style.color='';
-    pmsg.style.display=pending?'block':'none';
-    pmsg.textContent='⏳ Your account is pending manager approval.';
-  }
-  document.getElementById('submitted-view').style.display=submitted?'block':'none';
-  document.getElementById('log-form').style.display=(submitted||pending||removed)?'none':'block';
-  document.getElementById('submit-bar').style.display=(submitted||pending||removed)?'none':'block';
-  if(submitted) renderSubmittedSummary(submitted);
-  if(!submitted&&!pending) renderTaskInputs([]);
-  renderStreak();
-  renderHistory();
-  switchWTab('log', document.querySelector('.wtab'));
-}
-
-function renderStreak(){
-  const streak=calcStreak(CU.name);
-  const bar=document.getElementById('streak-bar');
-  if(streak>0){ bar.style.display='flex'; document.getElementById('streak-val').textContent=streak; }
-  else bar.style.display='none';
-}
-function calcStreak(name){
-  let streak=0, dt=new Date();
-  const today=todayStr();
-  const hasToday=D.entries.some(e=>e.worker===name&&e.date===today);
-  // If today is not submitted yet, start checking from yesterday
-  if(!hasToday) dt.setDate(dt.getDate()-1);
-  // Skip back past Sunday if we land on it without an entry (Sunday = day 0)
-  while(dt.getDay()===0 && !D.entries.some(e=>e.worker===name&&e.date===dt.toISOString().split('T')[0])){
-    dt.setDate(dt.getDate()-1);
-  }
-  while(true){
-    const ds=dt.toISOString().split('T')[0];
-    // Sunday with no entry — skip it, don't break streak
-    if(dt.getDay()===0 && !D.entries.some(e=>e.worker===name&&e.date===ds)){
-      dt.setDate(dt.getDate()-1); continue;
-    }
-    if(D.entries.some(e=>e.worker===name&&e.date===ds)){ streak++; dt.setDate(dt.getDate()-1); } else break;
-  }
-  return streak;
-}
-
-function switchWTab(tab, el){
-  document.querySelectorAll('.wtab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  ['log','history','chat','profile'].forEach(t2=>{
-    const d=document.getElementById('w-tab-'+t2); if(d) d.style.display='none';
-  });
-  const tgt=document.getElementById('w-tab-'+tab); if(tgt) tgt.style.display='block';
-  const subBar=document.getElementById('submit-bar');
-  const subView=document.getElementById('submitted-view');
-  if(subBar) subBar.style.display=(tab==='log'&&subView&&subView.style.display!=='block')?'block':'none';
-  if(tab==='history') renderHistory();
-  if(tab==='chat'){ renderTeamProfile(); renderChatRooms(); }
-  if(tab==='profile'){ renderWorkerProfile(); }
-}
-
-function renderTaskInputs(fields){
-  taskFields=fields.length?fields:[{name:'',qty:''}];
-  const c=document.getElementById('task-fields'); c.innerHTML='';
-  taskFields.forEach((f,i)=>{
-    const row=document.createElement('div'); row.className='tfield';
-    row.innerHTML=`<input class="tname" placeholder="Task name (e.g. Phones Tested)" value="${f.name}" oninput="taskFields[${i}].name=this.value">
-      <input class="tqty" type="number" min="0" placeholder="0" value="${f.qty}" oninput="taskFields[${i}].qty=this.value">
-      <button class="tremove" onclick="removeTask(${i})">×</button>`;
-    c.appendChild(row);
-  });
-}
-function addTask(){ taskFields.push({name:'',qty:''}); renderTaskInputs(taskFields); }
-function removeTask(i){ if(taskFields.length===1) return; taskFields.splice(i,1); renderTaskInputs(taskFields); }
-
-function showConfirm(){
-  const tasks=taskFields.filter(f=>f.name.trim());
-  const comment=document.getElementById('w-comment').value.trim();
-  if(!tasks.length){ alert('Please add at least one task.'); return; }
-  const list=document.getElementById('conf-list');
-  list.innerHTML=tasks.map(t=>`<div class="conf-item"><span style="color:var(--text2);">${t.name}</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;">${t.qty||0}</span></div>`).join('');
-  if(comment) list.innerHTML+=`<div class="conf-item"><span style="color:var(--text3);font-style:italic;">Comment</span><span style="font-size:11px;text-align:right;max-width:200px;">${comment}</span></div>`;
-  document.getElementById('conf-overlay').classList.add('open');
-}
-function closeConf(){ document.getElementById('conf-overlay').classList.remove('open'); }
-
-function submitShift(){
-  const tasks=taskFields.filter(f=>f.name.trim());
-  const comment=document.getElementById('w-comment').value.trim();
-  const entry={worker:CU.name,teamCode:CU.teamCode,date:todayStr(),time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),tasks,comment};
-  D.entries.push(entry); saveD(); closeConf();
-  document.getElementById('log-form').style.display='none';
-  document.getElementById('submit-bar').style.display='none';
-  document.getElementById('submitted-view').style.display='block';
-  renderSubmittedSummary(entry);
-  renderStreak();
-}
-
-function renderSubmittedSummary(e){
-  document.getElementById('submitted-summary').innerHTML=`<div class="card"><div class="sec-title" style="margin-bottom:8px;">Submitted at ${e.time}</div>${e.tasks.map(t=>`<div class="conf-item"><span style="color:var(--text2);font-size:12px;">${t.name}</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;">${t.qty||0}</span></div>`).join('')}${e.comment?`<div style="margin-top:8px;font-size:11px;color:var(--text3);font-style:italic;">${e.comment}</div>`:''}</div>`;
-}
-
-function renderHistory(){
-  const el=document.getElementById('history-list');
-  const entries=D.entries.filter(e=>e.worker===CU.name).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
-  if(!entries.length){ el.innerHTML='<div class="empty">No entries yet.</div>'; return; }
-  el.innerHTML=entries.map(e=>`<div class="history-entry"><div class="h-date">${fmtDate(e.date)} · ${e.time}</div><div class="h-tags">${e.tasks.map(t=>`<span class="h-tag">${t.name}: <strong>${t.qty||0}</strong></span>`).join('')}</div>${e.comment?`<div class="h-comment">"${e.comment}"</div>`:''}</div>`).join('');
-}
-
-// =========================================================
-// MANAGER APP
-// =========================================================
-function openManager(){
-  go('s-manager');
-  const roleLabel = currentOfficialRole ? ` · ${currentOfficialRole}` : '';
-  document.querySelector('#s-manager .hdr-logo').innerHTML = `<span>PR</span>SRVC <span style="font-size:11px;color:var(--text3);font-family:'Barlow',sans-serif;font-weight:400;margin-left:6px;">Officials${roleLabel}</span>`;
-  // Show/hide Members vs My Team tab based on role
-  const isTeamRep = currentOfficialRole==='Team Representative';
-  const mTab = document.getElementById('mgr-members-tab');
-  const myTab = document.getElementById('mgr-myteam-tab');
-  if(mTab) mTab.style.display = isTeamRep ? 'none' : 'block';
-  if(myTab) myTab.style.display = isTeamRep ? 'block' : 'none';
-  switchMTab(isTeamRep ? 'myteam' : 'dashboard', document.querySelector(isTeamRep ? '#mgr-myteam-tab' : '.mtab'));
-}
-
-function switchMTab(tab, el){
-  document.querySelectorAll('#s-manager .mtab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('#s-manager .tpanel').forEach(p=>p.classList.remove('active'));
-  if(el) el.classList.add('active');
-  const panel = document.getElementById('tp-'+tab);
-  if(panel) panel.classList.add('active');
-  if(tab==='dashboard') renderDashboard();
-  if(tab==='growth') renderGrowth();
-  if(tab==='members') renderMembers();
-  if(tab==='myteam') renderMyTeam();
-}
-
-function renderDashboard(){
-  const today=todayStr();
-  const active=D.users.filter(u=>u.status==='active');
-  const todayE=D.entries.filter(e=>e.date===today);
-  const pend=D.users.filter(u=>u.status==='pending');
-  document.getElementById('st-members').textContent=active.length;
-  document.getElementById('st-submitted').textContent=todayE.length;
-  document.getElementById('st-pending').textContent=pend.length;
-  const chart=document.getElementById('dashboard-chart');
-  if(!todayE.length){ chart.innerHTML='<div class="empty">No entries submitted today yet.</div>'; return; }
-  const maxT=Math.max(...todayE.map(e=>e.tasks.reduce((s,t)=>s+(parseInt(t.qty)||0),0)));
-  chart.innerHTML=todayE.map(e=>{
-    const total=e.tasks.reduce((s,t)=>s+(parseInt(t.qty)||0),0);
-    const pct=maxT?Math.round(total/maxT*100):0;
-    return `<div class="bar-row" onclick="openModal('${e.worker}')">
-      <div class="bar-name">${e.worker.split(' ')[0]}</div>
-      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
-      <div class="bar-val">${total}</div>
-    </div>`;
-  }).join('');
-}
-
-function renderGrowth(){
-  const el=document.getElementById('growth-list');
-  const isTeamRep = currentOfficial && currentOfficial.role==='Team Representative';
-  const repTeam = isTeamRep ? (currentOfficial.team||null) : null;
-  let active=D.users.filter(u=>u.status==='active');
-  // Team Representative only sees their own team
-  if(isTeamRep && repTeam) active=active.filter(u=>u.team===repTeam||u.teamCode===repTeam);
-  if(!active.length){ el.innerHTML='<div class="empty">No active members'+(isTeamRep&&repTeam?' in your team':'')+' yet.</div>'; return; }
-  const days=last7();
-  el.innerHTML=active.map(u=>{
-    const ents=D.entries.filter(e=>e.worker===u.name&&days.includes(e.date));
-    const tots=ents.map(e=>e.tasks.reduce((s,t)=>s+(parseInt(t.qty)||0),0));
-    const avg=tots.length?Math.round(tots.reduce((a,b)=>a+b,0)/tots.length):0;
-    const latest=tots[tots.length-1]||0;
-    const diff=latest-avg;
-    const badge=diff>0?`<div class="gbadge above">+${diff} above avg</div>`:diff<0?`<div class="gbadge below">${diff} below avg</div>`:`<div class="gbadge onavg">On average</div>`;
-    return `<div class="growth-row"><div><div class="g-name">${displayName(u)}</div><div class="g-avg">${ents.length} day(s) · avg ${avg}/day</div></div>${badge}</div>`;
-  }).join('');
-}
-
-function renderMembers(){
-  // Team Representatives use renderMyTeam instead
-  if(currentOfficialRole==='Team Representative'){ renderMyTeam(); return; }
-  const pend=D.users.filter(u=>u.status==='pending');
-  const active=D.users.filter(u=>u.status==='active');
-  const removed=D.users.filter(u=>u.status==='removed');
-  document.getElementById('pending-list').innerHTML=pend.length?pend.map(u=>`<div class="mrow"><div class="minfo"><div class="mav">${initials(u.name)}</div><div><div class="mname">${displayName(u)}${u.prefName?` <span style='font-size:10px;color:var(--text3);'>(${u.name})</span>`:''}</div><div class="mteam">${u.role||''} · ${u.teamCode}</div></div></div><div class="macts"><button class="bsm bapprove" onclick="approveUser('${u.name}')">APPROVE</button><button class="bsm breject" onclick="rejectUser('${u.name}')">REJECT</button></div></div>`).join(''):'<div class="empty">No pending approvals.</div>';
-  document.getElementById('active-list').innerHTML=active.length?active.map(u=>`<div class="mrow" style="flex-wrap:wrap;gap:10px;"><div class="minfo"><div class="mav">${initials(u.name)}</div><div><div class="mname">${displayName(u)}${u.prefName?` <span style='font-size:10px;color:var(--text3);'>(${u.name})</span>`:''}</div><div class="mteam">${u.role||''} · ${u.teamCode} ${u.pin?'· 🔐':''}</div></div></div><div class="macts" style="flex-wrap:wrap;gap:5px;"><span class="spill sactive">ACTIVE</span>${canViewSalary()?`<button class="bsm" style="background:rgba(243,156,18,.12);color:var(--warning);border:1px solid rgba(243,156,18,.25);" onclick="editSalary('${u.name}')">$${u.salaryPerHour||'—'}/hr</button>`:''} <button class="bsm breject" onclick="removeUser('${u.name}')">REMOVE</button></div></div>`).join(''):'<div class="empty">No active members yet.</div>';
-  const removedEl=document.getElementById('removed-list');
-  if(removedEl) removedEl.innerHTML=removed.length?removed.map(u=>`<div class="mrow"><div class="minfo"><div class="mav" style="background:rgba(215,43,43,.2);color:var(--red);">${initials(u.name)}</div><div><div class="mname" style="color:var(--text3);">${displayName(u)}</div><div class="mteam">${u.role||''} · ${u.teamCode}</div></div></div><div class="macts"><button class="bsm bapprove" onclick="reinstateUser('${u.name}')">RE-ADD</button><button class="bsm breject" onclick="deleteUser('${u.name}')">DELETE</button></div></div>`).join(''):'<div class="empty">No removed members.</div>';
-  renderTCs();
-}
-
-function approveUser(n){ const u=D.users.find(u=>u.name===n); if(u) u.status='active'; saveD(); renderMembers(); renderDashboard(); }
-function rejectUser(n){ if(!confirm('Reject and remove this signup?')) return; D.users=D.users.filter(u=>u.name!==n); saveD(); renderMembers(); }
-function removeUser(n){ if(!confirm('Remove '+n+' from the team? They will lose app access until re-approved.')) return; const u=D.users.find(u=>u.name===n); if(u){ u.status='removed'; u.removedAt=new Date().toISOString(); } saveD(); renderMembers(); renderDashboard(); }
-
-function renderTCs(){
-  document.getElementById('team-codes-list').innerHTML=D.teamCodes.map(tc=>`<div class="tc-row"><div style="display:flex;align-items:center;gap:10px;"><div class="tc-badge">${tc.code}</div><div style="font-size:13px;color:var(--text2);">${tc.name}</div></div><button class="bsm breject" onclick="removeTC('${tc.code}')">Remove</button></div>`).join('');
-}
-function addTeamCode(){
-  const code=document.getElementById('tc-code').value.trim().toUpperCase();
-  const name=document.getElementById('tc-name').value.trim();
-  if(!code||!name){ alert('Enter both code and name.'); return; }
-  if(D.teamCodes.find(t=>t.code===code)){ alert('Code already exists.'); return; }
-  D.teamCodes.push({code,name}); saveD();
-  document.getElementById('tc-code').value=''; document.getElementById('tc-name').value='';
-  renderTCs();
-}
-function removeTC(code){ if(!confirm('Remove team code '+code+'?')) return; D.teamCodes=D.teamCodes.filter(t=>t.code!==code); saveD(); renderTCs(); }
-
-function changePin(){
-  const old=document.getElementById('s-old-pin').value;
-  const np=document.getElementById('s-new-pin').value;
-  const cp=document.getElementById('s-con-pin').value;
-  const msg=document.getElementById('pmsg'); msg.style.display='block';
-  if(old!==D.pin){ msg.style.color='#f55'; msg.textContent='Current PIN is incorrect.'; return; }
-  if(np.length!==4||!/^\d+$/.test(np)){ msg.style.color='#f55'; msg.textContent='New PIN must be 4 digits.'; return; }
-  if(np!==cp){ msg.style.color='#f55'; msg.textContent='PINs do not match.'; return; }
-  D.pin=np; saveD(); msg.style.color='var(--success)'; msg.textContent='PIN updated successfully!';
-  document.getElementById('s-old-pin').value=''; document.getElementById('s-new-pin').value=''; document.getElementById('s-con-pin').value='';
-}
-
-function openModal(name){
-  const entries=D.entries.filter(e=>e.worker===name).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
-  document.getElementById('modal-title').textContent=name;
-  document.getElementById('modal-body').innerHTML=entries.length?entries.map(e=>`<div class="history-entry"><div class="h-date">${fmtDate(e.date)} · ${e.time}</div><div class="h-tags">${e.tasks.map(t=>`<span class="h-tag">${t.name}: <strong>${t.qty||0}</strong></span>`).join('')}</div>${e.comment?`<div class="h-comment">"${e.comment}"</div>`:''}</div>`).join(''):'<div class="empty">No entries yet.</div>';
-  document.getElementById('member-modal').classList.add('open');
-}
-function closeModal(){ document.getElementById('member-modal').classList.remove('open'); }
-
-// =========================================================
-// UTILS
-// =========================================================
-function logout(){
-  CU=null; currentOfficial=null; currentOfficialRole='';
-  const sel=document.getElementById('official-role');
-  if(sel) sel.value='';
-  go('s-home');
-}
-function todayStr(){ return new Date().toISOString().split('T')[0]; }
-function fmtDate(s){ return new Date(s+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}); }
-function initials(n){ return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
-function displayName(u){ return (u&&u.prefName) ? u.prefName : (u ? u.name : ''); }
-function displayNameStr(name){ const u=D.users.find(u=>u.name===name)||D.officials.find(o=>o.name===name); return displayName(u)||name; }
-function last7(){ const d=[]; for(let i=6;i>=0;i--){ const dt=new Date(); dt.setDate(dt.getDate()-i); d.push(dt.toISOString().split('T')[0]); } return d; }
-
-// =========================================================
-// OFFICIALS SIGNUP / LOGIN
-// =========================================================
 function doOfficialSignup(){
   const name=document.getElementById('os-name').value.trim();
   const prefName=document.getElementById('os-prefname').value.trim()||null;
@@ -1904,11 +1714,11 @@ function saveWorkerProfile(){
   }
   const idx = D.users.findIndex(u=>u.name===CU.name);
   if(idx>-1) D.users[idx]=CU;
-  saveD();
-  msg.style.color='var(--success)'; msg.textContent='Profile saved!';
-  renderWorkerProfile();
-  // update header avatar
-  document.getElementById('w-av').textContent = CU.avatar && !CU.avatar.startsWith('data:') ? CU.avatar : initials(CU.name);
+  autoSave('Save profile changes', null, ()=>{
+    saveD(); msg.style.color='var(--success)'; msg.textContent='Profile saved!';
+    renderWorkerProfile();
+    document.getElementById('w-av').textContent = CU.avatar && !CU.avatar.startsWith('data:') ? CU.avatar : initials(CU.name);
+  });
 }
 
 // =========================================================
@@ -2534,9 +2344,7 @@ function saveEvent(){
   const ev={id:Date.now(),title,date,time,desc,notify,createdBy:currentOfficial?currentOfficial.name:'Event Manager',createdAt:new Date().toISOString()};
   D.events.push(ev);
   D.notifications.push({id:Date.now(),eventId:ev.id,title:'📅 New Event: '+title,body:fmtDate(date)+(time?' at '+time:'')+(desc?' — '+desc.slice(0,60):''),time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:todayStr(),for:notify,read:[]});
-  saveD();
-  // Push notification to workers
-  notifyEvent(title, fmtDate(date)+(time?' at '+time:''));
+  autoSave('Add event: '+title, null, ()=>{ saveD(); notifyEvent(title, fmtDate(date)+(time?' at '+time:'')); });
   document.getElementById('off-event-form').style.display='none';
   ['ev-title','ev-date','ev-time','ev-desc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderOffEvents();
