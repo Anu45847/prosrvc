@@ -3,11 +3,37 @@
   "short_name": "PROSRVC",
   "description": "Track warehouse productivity, manage your team, and stay connected.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#D72B2B",
   "orientation": "portrait-primary",
+  "categories": [
+    "productivity",
+    "business"
+  ],
+  "lang": "en-GB",
   "icons": [
+    {
+      "src": "icon-120.png",
+      "sizes": "120x120",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-167.png",
+      "sizes": "167x167",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
     {
       "src": "icon-192.png",
       "sizes": "192x192",
@@ -19,6 +45,21 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Log My Shift",
+      "short_name": "Log Shift",
+      "description": "Go directly to today's shift log",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
