@@ -2092,10 +2092,12 @@ function amChangeDevPin(){
   setTimeout(()=>msg.style.display='none',3000);
 }
 
-// Update checkMgrPin to use custom dev PIN if set
-const _origCheckMgrPin = checkMgrPin;
+// checkMgrPin — handles both App Management PIN and Officials PIN
 function checkMgrPin(){
   const devPin = (D.settings && D.settings.devPin) ? D.settings.devPin : DEV_PIN;
+  const offPin = (D.settings && D.settings.officialsPin) ? D.settings.officialsPin : (D.managerPin || '1234');
+
+  // App Management PIN
   if(mgrBuf === devPin){
     mgrBuf=''; pinClear('mgr');
     currentOfficialRole='App Management';
@@ -2103,7 +2105,26 @@ function checkMgrPin(){
     switchAMTab('data', document.querySelector('#s-appmgmt .mtab'));
     return;
   }
-  _origCheckMgrPin.apply(this, arguments);
+  // Officials PIN
+  if(mgrBuf === offPin){
+    mgrBuf=''; pinClear('mgr');
+    const role = document.getElementById('official-role')?.value;
+    if(!role){ document.getElementById('pin-err').classList.add('show'); mgrBuf=''; pinClear('mgr'); return; }
+    currentOfficialRole = role;
+    if(role === 'App Management'){
+      go('s-appmgmt');
+      switchAMTab('data', document.querySelector('#s-appmgmt .mtab'));
+    } else {
+      // Try to find matching official account, else open manager
+      const off = D.officials.find(o=>o.role===role);
+      if(off){ currentOfficial=off; openOfficials(); }
+      else { openManager(); }
+    }
+    return;
+  }
+  // Wrong PIN
+  document.getElementById('pin-err').classList.add('show');
+  mgrBuf=''; pinClear('mgr');
 }
 
 // Update amChangePin to use new input IDs
