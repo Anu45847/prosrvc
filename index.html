@@ -2581,7 +2581,7 @@ function checkShiftReminder(){
   if(!CU || CU.status !== 'active') return;
   const now = new Date();
   const hour = now.getHours();
-  if(hour >= 16 && hour < 17){
+  if(hour >= 18 && hour < 19){
     const today = todayStr();
     const submitted = D.entries.some(e=>e.worker===CU.name&&e.date===today);
     if(!submitted){
