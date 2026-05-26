@@ -548,6 +548,13 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
 
 /* ===== NOTIFICATION BANNER ===== */
 .notif-banner{background:rgba(215,43,43,.1);border:1px solid rgba(215,43,43,.25);border-radius:8px;padding:12px 14px;margin-bottom:10px;cursor:pointer;}
+.notif-card{background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;}
+.notif-card.unread{border-left:3px solid var(--red);background:rgba(215,43,43,.04);}
+.notif-card.read{opacity:.6;}
+.notif-icon{font-size:22px;flex-shrink:0;width:36px;text-align:center;}
+.notif-body-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.notif-body-text{font-size:12px;color:var(--text2);line-height:1.4;}
+.notif-meta{font-size:10px;color:var(--text3);margin-top:4px;letter-spacing:1px;}
 .notif-banner:hover{background:rgba(215,43,43,.15);}
 .notif-title{font-size:13px;font-weight:700;color:var(--red);}
 .notif-body{font-size:11px;color:var(--text2);margin-top:3px;}
@@ -655,6 +662,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="fg"><div class="fl">Preferred Name <span style="color:#bbb;font-weight:400;">(optional)</span></div><input id="su-prefname" class="fi" type="text" placeholder="What people call you, e.g. Alex, J, Big Mike" oninput="updateSignupPreview()"></div>
     <div class="fg"><div class="fl">Password</div><input id="su-pass" class="fi" type="password" placeholder="Choose a password"></div>
     <div class="fg"><div class="fl">Phone Number (optional)</div><input id="su-phone" class="fi" type="tel" placeholder="e.g. 07700 900123" oninput="updateSignupPreview()"></div>
+    <div class="fg"><div class="fl">Email (optional)</div><input id="su-email" class="fi" type="email" placeholder="your@email.com"></div>
     <div class="fg">
       <div class="fl">Your Role / Profession</div>
       <select id="su-role" class="fi" style="cursor:pointer;" onchange="updateSignupPreview()">
@@ -723,6 +731,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="fg"><div class="fl">Password</div><input id="os-pass" class="fi" type="password" placeholder="Choose a password"></div>
     <div class="fg"><div class="fl">Confirm Password</div><input id="os-pass2" class="fi" type="password" placeholder="Repeat password"></div>
     <div class="fg"><div class="fl">Phone Number (optional)</div><input id="os-phone" class="fi" type="tel" placeholder="e.g. 07700 900456"></div>
+    <div class="fg"><div class="fl">Email (optional)</div><input id="os-email" class="fi" type="email" placeholder="your@email.com"></div>
     <div class="fg">
       <div class="fl">Your Role</div>
       <select id="os-role" class="fi" style="cursor:pointer;">
@@ -908,6 +917,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       </div>
     </div>
     <div class="tpanel" id="am-suggestions">
+      <div id="am-email-notifs"></div>
       <div class="sec-title">App Self-Analysis — Suggestions</div>
       <div id="am-suggestions-list"></div>
     </div>
@@ -1045,6 +1055,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="mtab" id="off-people-tab" onclick="switchOffTab('people',this)" style="display:none;">👥 People</div>
     <div class="mtab" onclick="switchOffTab('events',this)">📅 Events</div>
     <div class="mtab" onclick="switchOffTab('chat',this)">💬 Chat</div>
+    <div class="mtab" id="off-notif-tab" onclick="switchOffTab('notifications',this)">🔔 <span id="off-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
     <div class="mtab" onclick="switchOffTab('profile',this)">My Profile</div>
   </div>
   <div class="mbody">
@@ -1110,6 +1121,10 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <div class="sec-title">Team Members</div>
       <div id="off-team-list"></div>
     </div>
+    <div class="tpanel" id="off-notifications">
+      <div class="sec-title">🔔 Notifications</div>
+      <div id="off-notif-list"></div>
+    </div>
     <div class="tpanel" id="off-profile">
       <div class="set-card">
         <div class="set-lbl" id="off-profile-name">My Profile</div>
@@ -1140,6 +1155,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="wtab active" onclick="switchWTab('log',this)">Today's Log</div>
     <div class="wtab" onclick="switchWTab('history',this)">My History</div>
     <div class="wtab" onclick="switchWTab('chat',this)">💬 Chat</div>
+    <div class="wtab" id="w-notif-tab" onclick="switchWTab('notifications',this)">🔔 <span id="w-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
     <div class="wtab" onclick="switchWTab('profile',this)">My Profile</div>
   </div>
   <div class="wbody">
@@ -1194,6 +1210,10 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       </div>
     </div>
     <!-- Profile Tab -->
+    <div id="w-tab-notifications" style="display:none;">
+      <div class="sec-title">🔔 Notifications</div>
+      <div id="w-notif-list"></div>
+    </div>
     <div id="w-tab-profile" style="display:none;">
       <div id="w-profile-card"></div>
       <div class="set-card">
@@ -1648,6 +1668,7 @@ function doSignup(){
   const role=document.getElementById('su-role').value;
   const team=document.getElementById('su-team').value;
   const phone=document.getElementById('su-phone').value.trim();
+  const email=document.getElementById('su-email')?.value.trim()||null;
   const pin=document.getElementById('su-pin').value.trim();
   const avatar=avatarSelections['su']||null;
   const err=document.getElementById('su-err');
@@ -1669,29 +1690,14 @@ function doSignup(){
 
   // Create user with pending status + join request timestamp
   const newUser = {
-    name, prefName, password:pass, pin:pin||null, role, team,
+    name, prefName, password:pass, pin:pin||null, role, team, email,
     phone:phone||null, avatar, teamCode:tc.code, teamName:tc.name,
     status:'pending', joinRequest:true, requestedAt:new Date().toISOString()
   };
   D.users.push(newUser);
 
-  // Create notification for Team Rep + higher-ups
-  const notif = {
-    id: Date.now(),
-    type: 'join_request',
-    title: '📨 New Join Request',
-    body: (prefName||name) + ' wants to join the ' + team + ' team as ' + role,
-    worker: name,
-    team: team,
-    role: role,
-    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-    date: todayStr(),
-    for: ['Team Representative', 'CEO', 'Management Director', 'Human Representative', 'App Management'],
-    forTeam: team,
-    read: []
-  };
-  if(!D.notifications) D.notifications = [];
-  D.notifications.push(notif);
+  // Notify team rep + higher-ups via notification system
+  notifyJoinRequest(newUser);
 
   saveD();
   err.style.background='#efe'; err.style.borderColor='#afa'; err.style.color='#060';
@@ -1708,6 +1714,7 @@ function doOfficialSignup(){
   const pass2=document.getElementById('os-pass2').value;
   const role=document.getElementById('os-role').value;
   const phone=document.getElementById('os-phone').value.trim();
+  const email=document.getElementById('os-email')?.value.trim()||null;
   const pin=document.getElementById('os-pin').value.trim();
   const avatar=avatarSelections['os']||null;
   const err=document.getElementById('os-err');
@@ -1716,7 +1723,7 @@ function doOfficialSignup(){
   if(pass!==pass2){ err.textContent='Passwords do not match.'; err.classList.add('show'); return; }
   if(pin && (pin.length!==4||!/^\d+$/.test(pin))){ err.textContent='PIN must be exactly 4 digits.'; err.classList.add('show'); return; }
   if(D.officials.find(o=>o.name.toLowerCase()===name.toLowerCase())){ err.textContent='Name already registered.'; err.classList.add('show'); return; }
-  D.officials.push({name,prefName,password:pass,pin:pin||null,role,phone:phone||null,avatar,status:'active'});
+  D.officials.push({name,prefName,password:pass,pin:pin||null,role,phone:phone||null,email:email||null,avatar,status:'active'});
   saveD();
   err.style.background='#efe'; err.style.borderColor='#afa'; err.style.color='#060';
   err.textContent='Account created! You can now log in.'; err.classList.add('show');
@@ -2045,6 +2052,24 @@ let cbThinking = false;
 // =========================================================
 // APP SELF-ANALYSIS SUGGESTIONS
 // =========================================================
+function renderPendingEmails(){
+  const emails = D.pendingEmails||[];
+  if(!emails.length) return '';
+  const pending = emails.filter(e=>e.pending);
+  if(!pending.length) return '';
+  return `<div class="set-card" style="margin-bottom:16px;">
+    <div class="set-lbl" style="color:#f39c12;">📧 Pending Email Notifications (${pending.length})</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">These people have emails set up. Copy and send manually, or integrate an email service.</div>
+    ${pending.map(e=>`<div style="background:var(--dark3);border-radius:6px;padding:10px;margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:700;">To: ${e.to} (${e.name})</div>
+      <div style="font-size:11px;color:var(--text3);">Subject: ${e.subject}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;white-space:pre-wrap;">${e.body}</div>
+      <button class="bsm bapprove" onclick="markEmailSent(${emails.indexOf(e)})" style="margin-top:6px;">Mark Sent</button>
+    </div>`).join('')}
+  </div>`;
+}
+function markEmailSent(idx){ if(D.pendingEmails[idx]) D.pendingEmails[idx].pending=false; saveD(); renderSuggestions(); }
+
 function renderSuggestions(){
   const suggestions = analyseApp();
   const el = document.getElementById('am-suggestions-list');
@@ -2701,6 +2726,7 @@ function openOfficials(){
   document.getElementById('off-profile-role').textContent='Role: '+currentOfficial.role;
   const pt=document.getElementById('off-people-tab'); if(pt) pt.style.display=canViewPeople()?'block':'none';
   switchOffTab('overview',document.querySelector('#s-officials .mtab'));
+  setTimeout(updateNotifBadge, 300);
 }
 
 function renderWorkerProfile(){
@@ -3263,6 +3289,183 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+// =========================================================
+// NOTIFICATION SYSTEM
+// =========================================================
+
+function getMyNotifs(){
+  if(!CU && !currentOfficial) return [];
+  const role = currentOfficial ? currentOfficial.role : null;
+  const team = CU ? CU.team : (currentOfficial ? currentOfficial.team : null);
+  const isHighUp = ['CEO','Management Director','Human Representative','App Management'].includes(role);
+
+  return (D.notifications||[]).filter(n=>{
+    // Join requests: show to team rep of that team + high-ups
+    if(n.type==='join_request'){
+      if(isHighUp) return true;
+      if(role==='Team Representative' && n.forTeam===team) return true;
+      return false;
+    }
+    // Event notifications: show to workers or officials based on 'for' field
+    if(n.type==='event' || n.eventId){
+      if(n.for==='all') return true;
+      if(n.for==='workers' && CU) return true;
+      if(n.for==='officials' && currentOfficial) return true;
+      return false;
+    }
+    // General: show if addressed to this user/role
+    if(n.for && Array.isArray(n.for)){
+      if(CU && n.for.includes('workers')) return true;
+      if(role && n.for.includes(role)) return true;
+      return false;
+    }
+    return false;
+  }).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+}
+
+function getUnreadCount(){
+  const me = CU ? CU.name : (currentOfficial ? currentOfficial.name : null);
+  if(!me) return 0;
+  return getMyNotifs().filter(n=>!n.read||!n.read.includes(me)).length;
+}
+
+function markRead(id){
+  const me = CU ? CU.name : (currentOfficial ? currentOfficial.name : null);
+  if(!me) return;
+  const n = (D.notifications||[]).find(n=>n.id===id);
+  if(n){ if(!n.read) n.read=[]; if(!n.read.includes(me)) n.read.push(me); }
+  saveD();
+  updateNotifBadge();
+  renderNotifications();
+}
+
+function markAllRead(){
+  const me = CU ? CU.name : (currentOfficial ? currentOfficial.name : null);
+  if(!me) return;
+  getMyNotifs().forEach(n=>{ if(!n.read) n.read=[]; if(!n.read.includes(me)) n.read.push(me); });
+  saveD();
+  updateNotifBadge();
+  renderNotifications();
+}
+
+function updateNotifBadge(){
+  const count = getUnreadCount();
+  // Worker badge
+  const wb = document.getElementById('w-notif-badge');
+  if(wb){ wb.style.display=count>0?'inline':'none'; wb.textContent=count>9?'9+':count; }
+  // Officials badge
+  const ob = document.getElementById('off-notif-badge');
+  if(ob){ ob.style.display=count>0?'inline':'none'; ob.textContent=count>9?'9+':count; }
+}
+
+function renderNotifications(){
+  const notifs = getMyNotifs();
+  const me = CU ? CU.name : (currentOfficial ? currentOfficial.name : null);
+
+  const html = notifs.length ? notifs.map(n=>{
+    const unread = !n.read || !n.read.includes(me);
+    const icon = n.type==='join_request'?'📨':n.eventId?'📅':'🔔';
+    const timeStr = n.date===todayStr()?'Today '+n.time:(n.date+' '+n.time);
+    const actions = n.type==='join_request' && unread ? `
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="bsm bapprove" onclick="approveUser('${n.worker}');markRead(${n.id})">APPROVE</button>
+        <button class="bsm breject" onclick="rejectUser('${n.worker}');markRead(${n.id})">REJECT</button>
+      </div>` : '';
+    return `<div class="notif-card ${unread?'unread':'read'}" onclick="markRead(${n.id})">
+      <div class="notif-icon">${icon}</div>
+      <div style="flex:1;">
+        <div class="notif-body-title">${n.title}</div>
+        <div class="notif-body-text">${n.body||''}</div>
+        ${actions}
+        <div class="notif-meta">${timeStr}</div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No notifications yet.</div>';
+
+  // Render in both worker and officials panels (whichever is active)
+  const wEl = document.getElementById('w-notif-list');
+  const oEl = document.getElementById('off-notif-list');
+  const markAllBtn = notifs.some(n=>!n.read||!n.read.includes(me))
+    ? `<button class="btn-s" onclick="markAllRead()" style="margin-bottom:12px;padding:8px 16px;font-size:12px;">Mark all as read</button>` : '';
+  if(wEl) wEl.innerHTML = markAllBtn + html;
+  if(oEl) oEl.innerHTML = markAllBtn + html;
+}
+
+// Hook: push notification when join request is created
+function notifyJoinRequest(user){
+  const n = {
+    id: Date.now(),
+    type: 'join_request',
+    title: '📨 Join Request: ' + (user.prefName||user.name),
+    body: (user.prefName||user.name) + ' wants to join the ' + user.team + ' team as ' + (user.role||'Worker'),
+    worker: user.name,
+    team: user.team,
+    forTeam: user.team,
+    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    date: todayStr(),
+    read: []
+  };
+  if(!D.notifications) D.notifications=[];
+  D.notifications.push(n);
+
+  // Browser push notification to logged-in officials
+  if(Notification.permission==='granted'){
+    new Notification('📨 New Join Request', {
+      body: n.body,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png'
+    });
+  }
+
+  // Email notification hint (mailto link — no server needed)
+  sendEmailNotification(user);
+}
+
+function sendEmailNotification(user){
+  // Find all officials who should be notified
+  const recipients = D.officials.filter(o=>{
+    const high = ['CEO','Management Director','Human Representative'].includes(o.role);
+    const isRep = o.role==='Team Representative' && (o.team===user.team||o.teamCode===user.teamCode);
+    return (high||isRep) && o.email;
+  });
+  // We can't send emails from a frontend app without a server
+  // Store pending email notifications so admin can see them in App Management
+  if(recipients.length){
+    if(!D.pendingEmails) D.pendingEmails=[];
+    recipients.forEach(r=>{
+      const emailBody = (user.prefName||user.name)+' has requested to join the '+user.team+' team as '+(user.role||'Worker')+'. Log in to approve: https://anu45847.github.io/prosrvc/';
+      D.pendingEmails.push({
+        to: r.email,
+        name: r.name,
+        subject: 'PROSRVC - Join Request from '+(user.prefName||user.name),
+        body: emailBody,
+        sentAt: new Date().toISOString(),
+        pending: true
+      });
+    });
+    saveD();
+  }
+}
+
+// Hook switchWTab to render notifications
+const _origSwitchWTab = switchWTab;
+function switchWTab(tab, el){
+  _origSwitchWTab(tab, el);
+  if(tab==='notifications'){ renderNotifications(); markAllRead(); }
+}
+
+// switchOffTab already handles notifications via tab check
+
+// Update notification badge whenever app opens
+const _origOpenWorker = openWorker;
+function openWorker(){
+  _origOpenWorker();
+  setTimeout(updateNotifBadge, 200);
+}
+
+// openOfficials badge update handled inline
+
+
 function logout(){
   const hasSaved = localStorage.getItem('prosrvc_session') || localStorage.getItem('prosrvc_off_session');
   if(hasSaved && confirm('Stay logged in on this device?')){
