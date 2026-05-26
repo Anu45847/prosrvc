@@ -26,6 +26,7 @@
 <link rel="apple-touch-startup-image" media="(device-width:320px) and (device-height:568px) and (-webkit-device-pixel-ratio:2)" href="splash-640x1136.png">
 <link rel="apple-touch-startup-image" media="(min-device-width:768px) and (max-device-width:1024px)" href="splash-1536x2048.png">
 <title>PROSRVC Productivity Tracker</title>
+<meta name="app-version" content="2.1">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -1055,7 +1056,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="mtab" id="off-people-tab" onclick="switchOffTab('people',this)" style="display:none;">👥 People</div>
     <div class="mtab" onclick="switchOffTab('events',this)">📅 Events</div>
     <div class="mtab" onclick="switchOffTab('chat',this)">💬 Chat</div>
-    <div class="mtab" id="off-notif-tab" onclick="switchOffTab('notifications',this)">🔔 <span id="off-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
+    <div class="mtab" id="off-notif-tab" onclick="switchOffTab('notifications',this)">🔔 Alerts <span id="off-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
     <div class="mtab" onclick="switchOffTab('profile',this)">My Profile</div>
   </div>
   <div class="mbody">
@@ -1155,7 +1156,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="wtab active" onclick="switchWTab('log',this)">Today's Log</div>
     <div class="wtab" onclick="switchWTab('history',this)">My History</div>
     <div class="wtab" onclick="switchWTab('chat',this)">💬 Chat</div>
-    <div class="wtab" id="w-notif-tab" onclick="switchWTab('notifications',this)">🔔 <span id="w-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
+    <div class="wtab" id="w-notif-tab" onclick="switchWTab('notifications',this)">🔔 Alerts <span id="w-notif-badge" style="display:none;background:var(--red);color:#fff;border-radius:50%;font-size:9px;padding:1px 5px;margin-left:2px;font-weight:700;">0</span></div>
     <div class="wtab" onclick="switchWTab('profile',this)">My Profile</div>
   </div>
   <div class="wbody">
