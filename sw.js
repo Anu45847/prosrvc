@@ -1,5 +1,5 @@
 // PROSRVC Service Worker v5 — full offline support
-const CACHE = 'prosrvc-v5';
+const CACHE = 'prosrvc-v6';
 const SHELL = [
   '/prosrvc/',
   '/prosrvc/index.html',
