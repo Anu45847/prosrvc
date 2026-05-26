@@ -605,7 +605,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <img id="login-logo" class="auth-logo" alt="PROSRVC">
     <div class="auth-title">Worker Login</div>
     <div class="auth-sub">Sign in to log your shift</div>
-    <div class="fg"><div class="fl">Full Name</div><input id="ln-name" class="fi" type="text" placeholder="Your name"></div>
+    <div class="fg"><div class="fl">Name</div><input id="ln-name" class="fi" type="text" placeholder="Your name or preferred name"></div>
     <div class="fg"><div class="fl">Password</div><input id="ln-pass" class="fi" type="password" placeholder="••••••••"></div>
     <div class="err" id="ln-err">Name or password is incorrect.</div>
     <button class="btn-p" onclick="doLogin()">LOGIN</button>
@@ -745,7 +745,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <img class="auth-logo" alt="PROSRVC">
     <div class="auth-title">Officials Login</div>
     <div class="auth-sub">Sign in to your official account</div>
-    <div class="fg"><div class="fl">Full Name</div><input id="ol-name" class="fi" type="text" placeholder="Your name"></div>
+    <div class="fg"><div class="fl">Name</div><input id="ol-name" class="fi" type="text" placeholder="Your name or preferred name"></div>
     <div class="fg"><div class="fl">Password</div><input id="ol-pass" class="fi" type="password" placeholder="••••••••"></div>
     <div class="err" id="ol-err">Name or password is incorrect.</div>
     <button class="btn-p" onclick="doOfficialLogin()">LOGIN</button>
@@ -845,6 +845,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
     <div class="mtab" onclick="switchAMTab('entries',this)">All Entries</div>
     <div class="mtab" onclick="switchAMTab('permissions',this)">🔑 Permissions</div>
     <div class="mtab" onclick="switchAMTab('suggestions',this)">💡 Suggestions</div>
+    <div class="mtab" onclick="switchAMTab('settings',this)">⚙️ Settings</div>
     <div class="mtab" onclick="switchAMTab('danger',this)" style="color:#f55;">Danger Zone</div>
   </div>
   <div class="mbody">
@@ -881,6 +882,98 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
       <div class="sec-title">App Self-Analysis — Suggestions</div>
       <div id="am-suggestions-list"></div>
     </div>
+    <div class="tpanel" id="am-settings">
+      <!-- APP IDENTITY -->
+      <div class="set-card">
+        <div class="set-lbl">🏷️ App Identity</div>
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">App Name</div>
+        <input id="am-app-name" class="set-fi" type="text" placeholder="PROSRVC Productivity Tracker">
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">App Slogan / Subtitle</div>
+        <input id="am-app-slogan" class="set-fi" type="text" placeholder="e.g. Built for the team">
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">Accent Colour (red by default)</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <input type="color" id="am-accent-col" value="#D72B2B" style="width:40px;height:34px;border:none;border-radius:6px;cursor:pointer;background:transparent;">
+          <span style="font-size:12px;color:var(--text3);">Changes buttons, accents and highlights</span>
+        </div>
+        <div id="am-identity-msg" class="pmsg"></div>
+        <button class="btn-p" onclick="saveAppIdentity()">Save Identity</button>
+      </div>
+
+      <!-- PINs -->
+      <div class="set-card">
+        <div class="set-lbl">🔐 PINs & Access</div>
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">Officials PIN (default: 1234)</div>
+        <input id="am-off-pin-new" class="set-fi" type="password" placeholder="New 4-digit PIN" maxlength="4">
+        <input id="am-off-pin-con" class="set-fi" type="password" placeholder="Confirm PIN" maxlength="4">
+        <div id="am-offpin-msg" class="pmsg"></div>
+        <button class="btn-p" onclick="amChangePin()" style="margin-bottom:16px;">Update Officials PIN</button>
+        <div class="divider"></div>
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;margin-top:12px;">App Management PIN (current: 6558)</div>
+        <input id="am-dev-pin-new" class="set-fi" type="password" placeholder="New 4-digit PIN" maxlength="4">
+        <input id="am-dev-pin-con" class="set-fi" type="password" placeholder="Confirm PIN" maxlength="4">
+        <div id="am-devpin-msg" class="pmsg"></div>
+        <button class="btn-p" onclick="amChangeDevPin()">Update App Management PIN</button>
+      </div>
+
+      <!-- TEAM MANAGEMENT -->
+      <div class="set-card">
+        <div class="set-lbl">👥 Teams</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Add or remove teams from the team list shown during signup.</div>
+        <div class="inline-form" style="margin-bottom:10px;">
+          <input class="ii" id="am-new-team" placeholder="New team name" style="flex:1;">
+          <button class="badd" onclick="amAddTeam()">Add</button>
+        </div>
+        <div id="am-teams-list"></div>
+      </div>
+
+      <!-- ROLES -->
+      <div class="set-card">
+        <div class="set-lbl">🎭 Worker Roles</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Add custom roles to the signup dropdown.</div>
+        <div class="inline-form" style="margin-bottom:10px;">
+          <input class="ii" id="am-new-role" placeholder="New role name" style="flex:1;">
+          <button class="badd" onclick="amAddRole()">Add</button>
+        </div>
+        <div id="am-roles-list"></div>
+      </div>
+
+      <!-- SHIFT SETTINGS -->
+      <div class="set-card">
+        <div class="set-lbl">⏰ Shift Settings</div>
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">Shift reminder time (24h format)</div>
+        <input id="am-reminder-hour" class="set-fi" type="number" min="0" max="23" placeholder="18" style="max-width:100px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Workers get a notification at this hour if they haven't submitted their shift.</div>
+        <div class="fl" style="color:var(--text3);margin-bottom:6px;">Max tasks per shift log</div>
+        <input id="am-max-tasks" class="set-fi" type="number" min="1" max="20" placeholder="10" style="max-width:100px;">
+        <div id="am-shift-msg" class="pmsg"></div>
+        <button class="btn-p" onclick="saveShiftSettings()">Save Shift Settings</button>
+      </div>
+
+      <!-- OFFICIALS FEATURES -->
+      <div class="set-card">
+        <div class="set-lbl">📋 Feature Toggles</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Turn features on or off for the whole app.</div>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+          <input type="checkbox" id="ft-streak" style="width:16px;height:16px;accent-color:var(--red);">
+          <div><div style="font-size:13px;">🔥 Streak counter</div><div style="font-size:11px;color:var(--text3);">Show daily streak on worker home screen</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+          <input type="checkbox" id="ft-chat" style="width:16px;height:16px;accent-color:var(--red);">
+          <div><div style="font-size:13px;">💬 Team chat</div><div style="font-size:11px;color:var(--text3);">Enable chat rooms for workers</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+          <input type="checkbox" id="ft-events" style="width:16px;height:16px;accent-color:var(--red);">
+          <div><div style="font-size:13px;">📅 Events</div><div style="font-size:11px;color:var(--text3);">Show events tab for officials</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;">
+          <input type="checkbox" id="ft-leaderboard" style="width:16px;height:16px;accent-color:var(--red);">
+          <div><div style="font-size:13px;">🏆 Growth / leaderboard</div><div style="font-size:11px;color:var(--text3);">Show growth tab to officials</div></div>
+        </label>
+        <div id="am-features-msg" class="pmsg" style="margin-top:8px;"></div>
+        <button class="btn-p" onclick="saveFeatureToggles()" style="margin-top:10px;">Save Features</button>
+      </div>
+    </div>
+
     <div class="tpanel" id="am-danger">
       <div class="set-card" style="border-color:rgba(215,43,43,.4);">
         <div class="set-lbl" style="color:var(--red);">⚠️ Danger Zone</div>
@@ -903,15 +996,7 @@ body{font-family:'Barlow',sans-serif;background:var(--black);color:var(--text);m
           <button class="bsm breject" onclick="fullReset()" style="padding:8px 16px;font-size:12px;background:rgba(215,43,43,.3);">Full Reset</button>
         </div>
       </div>
-      <div class="set-card">
-        <div class="set-lbl">Change Officials PIN</div>
-        <div class="fl" style="color:var(--text3);margin-bottom:6px;">New PIN (4 digits)</div>
-        <input id="am-new-pin" class="set-fi" type="password" placeholder="New PIN" maxlength="4">
-        <div class="fl" style="color:var(--text3);margin-bottom:6px;">Confirm New PIN</div>
-        <input id="am-con-pin" class="set-fi" type="password" placeholder="Repeat PIN" maxlength="4">
-        <div id="am-pin-msg" class="pmsg"></div>
-        <button class="btn-p" onclick="amChangePin()">Update Officials PIN</button>
-      </div>
+
     </div>
   </div>
 </div>
@@ -1247,6 +1332,9 @@ function loadD(){
   if(!D.events) D.events = [];
   if(!D.notifications) D.notifications = [];
   if(!D.permissions) D.permissions = { salaryRoles:['CEO','Management Director','Human Representative'] };
+  if(!D.settings) D.settings = {};
+  // Apply saved settings
+  setTimeout(applyAppSettings, 0);
   if(!D.teamCodes) D.teamCodes = [{code:'TEAM-A1',name:'Phones Team'},{code:'TEAM-B1',name:'Tablets Team'}];
   if(!D.pin) D.pin = '1234';
 }
@@ -1280,12 +1368,17 @@ function go(id){
 // AUTH
 // =========================================================
 function doLogin(){
-  const name=document.getElementById('ln-name').value.trim();
+  const input=document.getElementById('ln-name').value.trim();
   const pass=document.getElementById('ln-pass').value;
   const err=document.getElementById('ln-err');
   err.classList.remove('show');
-  const u=D.users.find(u=>u.name.toLowerCase()===name.toLowerCase()&&u.password===pass);
-  if(!u){ err.classList.add('show'); return; }
+  // Match by preferred name OR full name (case-insensitive)
+  const u=D.users.find(u=>
+    (u.name.toLowerCase()===input.toLowerCase() ||
+    (u.prefName && u.prefName.toLowerCase()===input.toLowerCase()))
+    && u.password===pass
+  );
+  if(!u){ err.classList.add('show'); err.textContent='Name or password is incorrect.'; return; }
   if(u.status==='removed'){
     err.textContent='Your account has been removed. Contact your Team Representative or Manager to be re-added.';
     err.classList.add('show'); return;
@@ -1340,30 +1433,6 @@ function pinBack(mode){
 function pinClear(mode){
   if(mode==='mgr'){ mgrBuf=''; for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.remove('filled'); }
   else { wrkBuf=''; for(let i=0;i<4;i++) document.getElementById('wpd'+i).classList.remove('filled'); }
-}
-function checkMgrPin(){
-  // App Management fixed PIN (always works regardless of role selection)
-  if(mgrBuf===DEV_PIN){
-    mgrBuf=''; pinClear('mgr');
-    document.getElementById('pin-err').style.display='none';
-    currentOfficialRole='App Management';
-    openAppMgmt(); return;
-  }
-  if(!currentOfficialRole){
-    document.getElementById('pin-err').style.display='block';
-    document.getElementById('pin-err').textContent='Please select your role first.';
-    mgrBuf=''; pinClear('mgr'); return;
-  }
-  if(mgrBuf===D.pin){
-    mgrBuf=''; pinClear('mgr');
-    document.getElementById('pin-err').style.display='none';
-    document.getElementById('pin-err').textContent='Incorrect PIN. Try again.';
-    openManager();
-  } else {
-    document.getElementById('pin-err').style.display='block';
-    document.getElementById('pin-err').textContent='Incorrect PIN. Try again.';
-    mgrBuf=''; pinClear('mgr');
-  }
 }
 function checkWrkPin(){
   const u=D.users.find(u=>u.name.toLowerCase()===wrkLoginName.toLowerCase());
@@ -1664,14 +1733,17 @@ function doOfficialSignup(){
 }
 
 function doOfficialLogin(){
-  const name=document.getElementById('ol-name').value.trim();
+  const input=document.getElementById('ol-name').value.trim();
   const pass=document.getElementById('ol-pass').value;
   const err=document.getElementById('ol-err');
   err.classList.remove('show');
-  const o=D.officials.find(o=>o.name.toLowerCase()===name.toLowerCase()&&o.password===pass);
+  const o=D.officials.find(o=>
+    (o.name.toLowerCase()===input.toLowerCase()||
+    (o.prefName&&o.prefName.toLowerCase()===input.toLowerCase()))
+    &&o.password===pass
+  );
   if(!o){ err.classList.add('show'); return; }
-  currentOfficial=o; currentOfficialRole=o.role;
-  openOfficials();
+  currentOfficial=o; openOfficials();
 }
 
 // =========================================================
@@ -1786,15 +1858,6 @@ function fullReset(){
   localStorage.removeItem('prosrvc'); loadD(); saveD(); logout(); alert('App has been reset.');
 }
 
-function amChangePin(){
-  const np=document.getElementById('am-new-pin').value;
-  const cp=document.getElementById('am-con-pin').value;
-  const msg=document.getElementById('am-pin-msg'); msg.style.display='block';
-  if(np.length!==4||!/^\d+$/.test(np)){ msg.style.color='#f55'; msg.textContent='PIN must be 4 digits.'; return; }
-  if(np!==cp){ msg.style.color='#f55'; msg.textContent='PINs do not match.'; return; }
-  D.pin=np; saveD(); msg.style.color='var(--success)'; msg.textContent='Officials PIN updated!';
-  document.getElementById('am-new-pin').value=''; document.getElementById('am-con-pin').value='';
-}
 
 // =========================================================
 // AVATAR / PHOTO HELPERS
@@ -2145,7 +2208,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 // =========================================================
 
 
-// Override switchAMTab to add suggestions support
+// Override switchAMTab to add settings + suggestions support
 function switchAMTab(tab,el){
   document.querySelectorAll('#s-appmgmt .mtab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#s-appmgmt .tpanel').forEach(p=>p.classList.remove('active'));
@@ -2156,6 +2219,198 @@ function switchAMTab(tab,el){
   if(tab==='entries') renderAMEntries();
   if(tab==='suggestions') renderSuggestions();
   if(tab==='permissions') renderSalaryPerms();
+  if(tab==='settings') renderAMSettings();
+}
+
+// =========================================================
+// APP MANAGEMENT SETTINGS
+// =========================================================
+function renderAMSettings(){
+  const s = D.settings || {};
+  // App identity
+  const ni = document.getElementById('am-app-name');
+  const si = document.getElementById('am-app-slogan');
+  const ci = document.getElementById('am-accent-col');
+  if(ni) ni.value = s.appName || '';
+  if(si) si.value = s.appSlogan || '';
+  if(ci) ci.value = s.accentColor || '#D72B2B';
+  // Shift settings
+  const rh = document.getElementById('am-reminder-hour');
+  const mt = document.getElementById('am-max-tasks');
+  if(rh) rh.value = s.reminderHour !== undefined ? s.reminderHour : 18;
+  if(mt) mt.value = s.maxTasks || 10;
+  // Feature toggles
+  const features = s.features || { streak:true, chat:true, events:true, leaderboard:true };
+  ['streak','chat','events','leaderboard'].forEach(f=>{
+    const el = document.getElementById('ft-'+f);
+    if(el) el.checked = features[f] !== false;
+  });
+  // Teams list
+  renderAMTeams();
+  // Roles list
+  renderAMRoles();
+  // Dev PIN field placeholder
+  const dp = document.getElementById('am-dev-pin-new');
+  if(dp) dp.placeholder = 'New 4-digit PIN';
+}
+
+function saveAppIdentity(){
+  if(!D.settings) D.settings = {};
+  const name = document.getElementById('am-app-name')?.value.trim();
+  const slogan = document.getElementById('am-app-slogan')?.value.trim();
+  const color = document.getElementById('am-accent-col')?.value;
+  if(name) D.settings.appName = name;
+  if(slogan) D.settings.appSlogan = slogan;
+  if(color){ D.settings.accentColor = color; document.documentElement.style.setProperty('--red', color); }
+  saveD();
+  const msg = document.getElementById('am-identity-msg');
+  if(msg){ msg.style.display='block'; msg.style.color='var(--success)'; msg.textContent='Identity saved!'; setTimeout(()=>msg.style.display='none',2500); }
+}
+
+function amChangeDevPin(){
+  const np = document.getElementById('am-dev-pin-new')?.value;
+  const cp = document.getElementById('am-dev-pin-con')?.value;
+  const msg = document.getElementById('am-devpin-msg');
+  if(!np||np.length!==4||!/^\d+$/.test(np)){ msg.style.display='block'; msg.style.color='#f55'; msg.textContent='PIN must be 4 digits.'; return; }
+  if(np!==cp){ msg.style.display='block'; msg.style.color='#f55'; msg.textContent='PINs do not match.'; return; }
+  if(!D.settings) D.settings = {};
+  D.settings.devPin = np;
+  saveD();
+  msg.style.display='block'; msg.style.color='var(--success)'; msg.textContent='App Management PIN updated!';
+  document.getElementById('am-dev-pin-new').value='';
+  document.getElementById('am-dev-pin-con').value='';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+
+// Update checkMgrPin to use custom dev PIN if set
+const _origCheckMgrPin = checkMgrPin;
+function checkMgrPin(){
+  const devPin = (D.settings && D.settings.devPin) ? D.settings.devPin : DEV_PIN;
+  if(mgrBuf === devPin){
+    mgrBuf=''; pinClear('mgr');
+    currentOfficialRole='App Management';
+    go('s-appmgmt');
+    switchAMTab('data', document.querySelector('#s-appmgmt .mtab'));
+    return;
+  }
+  _origCheckMgrPin.apply(this, arguments);
+}
+
+// Update amChangePin to use new input IDs
+function amChangePin(){
+  const np = document.getElementById('am-off-pin-new')?.value || document.getElementById('am-new-pin')?.value;
+  const cp = document.getElementById('am-off-pin-con')?.value || document.getElementById('am-con-pin')?.value;
+  const msg = document.getElementById('am-offpin-msg') || document.getElementById('am-pin-msg');
+  if(!np||np.length!==4||!/^\d+$/.test(np)){ if(msg){msg.style.display='block';msg.style.color='#f55';msg.textContent='PIN must be 4 digits.';} return; }
+  if(np!==cp){ if(msg){msg.style.display='block';msg.style.color='#f55';msg.textContent='PINs do not match.';} return; }
+  if(!D.settings) D.settings={};
+  D.settings.officialsPin = np;
+  saveD();
+  if(msg){msg.style.display='block';msg.style.color='var(--success)';msg.textContent='Officials PIN updated!';}
+  const n1=document.getElementById('am-off-pin-new'); if(n1) n1.value='';
+  const c1=document.getElementById('am-off-pin-con'); if(c1) c1.value='';
+  setTimeout(()=>{ if(msg) msg.style.display='none'; },3000);
+}
+
+function renderAMTeams(){
+  const el = document.getElementById('am-teams-list');
+  if(!el) return;
+  const teams = D.settings?.customTeams || TEAMS.filter(t=>t!=='Communication');
+  el.innerHTML = teams.map(t=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">${t}</span>
+      <button onclick="amRemoveTeam('${t}')" style="background:transparent;border:none;color:#f55;cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>`).join('') || '<div style="font-size:12px;color:var(--text3);">No teams yet.</div>';
+}
+
+function amAddTeam(){
+  const inp = document.getElementById('am-new-team');
+  const name = inp?.value.trim();
+  if(!name) return;
+  if(!D.settings) D.settings={};
+  if(!D.settings.customTeams) D.settings.customTeams = [...TEAMS.filter(t=>t!=='Communication')];
+  if(!D.settings.customTeams.includes(name)) D.settings.customTeams.push(name);
+  saveD(); inp.value=''; renderAMTeams();
+  // Also add to live TEAMS array
+  if(!TEAMS.includes(name)) TEAMS.push(name);
+}
+
+function amRemoveTeam(name){
+  if(!confirm('Remove team "'+name+'"?')) return;
+  if(!D.settings) D.settings={};
+  if(!D.settings.customTeams) D.settings.customTeams = [...TEAMS.filter(t=>t!=='Communication')];
+  D.settings.customTeams = D.settings.customTeams.filter(t=>t!==name);
+  saveD(); renderAMTeams();
+  const idx = TEAMS.indexOf(name);
+  if(idx>-1) TEAMS.splice(idx,1);
+}
+
+function renderAMRoles(){
+  const el = document.getElementById('am-roles-list');
+  if(!el) return;
+  const defaultRoles = ['Warehouse Worker','Team Representative','Sales Person – B2B','Sales Person – Amazon','Human Representative','Management Director','Accountant','Data Analyst','Developer','CEO'];
+  const roles = D.settings?.customRoles || defaultRoles;
+  el.innerHTML = roles.map(r=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">${r}</span>
+      <button onclick="amRemoveRole('${r}')" style="background:transparent;border:none;color:#f55;cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>`).join('') || '<div style="font-size:12px;color:var(--text3);">No roles yet.</div>';
+}
+
+function amAddRole(){
+  const inp = document.getElementById('am-new-role');
+  const name = inp?.value.trim();
+  if(!name) return;
+  if(!D.settings) D.settings={};
+  if(!D.settings.customRoles) D.settings.customRoles=['Warehouse Worker','Team Representative','Sales Person – B2B','Sales Person – Amazon','Human Representative','Management Director','Accountant','Data Analyst','Developer','CEO'];
+  if(!D.settings.customRoles.includes(name)) D.settings.customRoles.push(name);
+  saveD(); inp.value=''; renderAMRoles();
+}
+
+function amRemoveRole(name){
+  if(!D.settings?.customRoles) return;
+  D.settings.customRoles = D.settings.customRoles.filter(r=>r!==name);
+  saveD(); renderAMRoles();
+}
+
+function saveShiftSettings(){
+  if(!D.settings) D.settings={};
+  const h = parseInt(document.getElementById('am-reminder-hour')?.value);
+  const m = parseInt(document.getElementById('am-max-tasks')?.value);
+  if(!isNaN(h) && h>=0 && h<=23) D.settings.reminderHour = h;
+  if(!isNaN(m) && m>=1 && m<=20) D.settings.maxTasks = m;
+  saveD();
+  const msg = document.getElementById('am-shift-msg');
+  if(msg){ msg.style.display='block'; msg.style.color='var(--success)'; msg.textContent='Shift settings saved!'; setTimeout(()=>msg.style.display='none',2500); }
+}
+
+function saveFeatureToggles(){
+  if(!D.settings) D.settings={};
+  D.settings.features = {
+    streak: document.getElementById('ft-streak')?.checked !== false,
+    chat: document.getElementById('ft-chat')?.checked !== false,
+    events: document.getElementById('ft-events')?.checked !== false,
+    leaderboard: document.getElementById('ft-leaderboard')?.checked !== false,
+  };
+  saveD();
+  const msg = document.getElementById('am-features-msg');
+  if(msg){ msg.style.display='block'; msg.style.color='var(--success)'; msg.textContent='Feature settings saved!'; setTimeout(()=>msg.style.display='none',2500); }
+}
+
+// Apply settings on load
+function applyAppSettings(){
+  const s = D.settings || {};
+  if(s.accentColor) document.documentElement.style.setProperty('--red', s.accentColor);
+  // Apply custom teams to dropdowns
+  if(s.customTeams){
+    const selects = document.querySelectorAll('#su-team, #os-team, #rep-tc-team');
+    selects.forEach(sel=>{
+      if(!sel) return;
+      const current = sel.value;
+      sel.innerHTML = '<option value="">— Select your team —</option>' +
+        s.customTeams.map(t=>`<option${current===t?' selected':''}>${t}</option>`).join('');
+    });
+  }
 }
 
 // =========================================================
@@ -2967,8 +3222,27 @@ function installApp() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', {scope: './'})
-      .then(reg => console.log('SW registered:', reg.scope))
+      .then(reg => {
+        // Check for updates immediately and every 60 seconds
+        reg.update();
+        setInterval(() => reg.update(), 60000);
+        // When a new SW is waiting, activate it immediately
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if(newWorker.state === 'installed' && navigator.serviceWorker.controller){
+              // New version ready — tell it to activate
+              newWorker.postMessage({type: 'SKIP_WAITING'});
+            }
+          });
+        });
+      })
       .catch(err => console.log('SW failed:', err));
+    // When SW activates, reload page to get fresh content
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(!refreshing){ refreshing = true; window.location.reload(); }
+    });
   });
 }
 </script>
