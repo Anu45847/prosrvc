@@ -1428,7 +1428,37 @@ function loadD(){
 }
 function saveD(){
   localStorage.setItem('prosrvc', JSON.stringify(D));
+  // Mark that data has been saved locally — sync when online
+  localStorage.setItem('prosrvc_dirty', Date.now().toString());
 }
+
+// ── Offline status banner ─────────────────────────────────
+function showOfflineBanner(){
+  if(document.getElementById('_offline_bar')) return;
+  const bar = document.createElement('div');
+  bar.id = '_offline_bar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#e67e22;color:#fff;text-align:center;font-size:12px;font-weight:700;font-family:Barlow,sans-serif;padding:6px;letter-spacing:1px;';
+  bar.textContent = "📵 Offline — changes saved locally, will sync when reconnected";
+  document.body.appendChild(bar);
+}
+function hideOfflineBanner(){
+  const bar = document.getElementById('_offline_bar');
+  if(bar) bar.remove();
+  // Show sync confirmation briefly
+  if(localStorage.getItem('prosrvc_dirty')){
+    const ok = document.createElement('div');
+    ok.id = '_online_bar';
+    ok.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#27ae60;color:#fff;text-align:center;font-size:12px;font-weight:700;font-family:Barlow,sans-serif;padding:6px;letter-spacing:1px;';
+    ok.textContent = '✓ Back online — all your changes are saved';
+    document.body.appendChild(ok);
+    localStorage.removeItem('prosrvc_dirty');
+    setTimeout(()=>{ const b=document.getElementById('_online_bar'); if(b) b.remove(); }, 3000);
+  }
+}
+window.addEventListener('offline', showOfflineBanner);
+window.addEventListener('online', hideOfflineBanner);
+// Check on load
+if(!navigator.onLine) showOfflineBanner();
 
 // Auto-save with permission toast
 let _pendingSave = null;
@@ -3254,7 +3284,7 @@ function checkAutoLogin(){
     const raw = localStorage.getItem('prosrvc_off_session');
     if(raw){
       const s = JSON.parse(raw);
-      if(true) // permanent session{
+      if(true){ // permanent session
         const o = D.officials.find(o=>o.name===s.name);
         if(o){ currentOfficial=o; openOfficials(); return; }
       }
